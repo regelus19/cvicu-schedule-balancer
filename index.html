@@ -1938,8 +1938,10 @@
         // Block scheduling on any non-working or protected day
         // Per code reference: SICK, LOA added; PAYRO added v28; ADMIN added v28b
         if (['R/O','PTO','HOL','FMLA','LOA','PAYRO','SICK','ADMIN'].includes(current)) return false;
-        // CRITICAL: must sort chronologically — alphabetical sort breaks week boundary calc
-        const allDates = Object.keys(simulation[staff.name]).filter(k => /^\d+\/\d+\/[\s\d]{4,5}$/.test(k.trim())).sort(chronoSort);
+        // Filter to date keys only — use parseDate validity (handles '4/19/ 2026' and '4/19/2026')
+        const allDates = Object.keys(simulation[staff.name])
+            .filter(k => { try { const d = parseDate(k); return !isNaN(d.getTime()) && d.getFullYear() > 2000; } catch(e) { return false; } })
+            .sort(chronoSort);
         const dateIdx = allDates.indexOf(date);
         if (dateIdx===-1) return false;
         let consecutiveBefore=0;
