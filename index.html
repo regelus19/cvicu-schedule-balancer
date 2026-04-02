@@ -1,0 +1,2387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CVICU Schedule Balancer v30</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; padding: 20px; color: #2d3748;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { background: white; border-radius: 12px; padding: 32px; margin-bottom: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        h1 { font-size: 32px; font-weight: 700; color: #1a365d; margin-bottom: 8px; }
+        .subtitle { color: #718096; font-size: 16px; }
+        .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .card-title { font-size: 18px; font-weight: 600; color: #2d3748; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; background: #e6fffa; color: #234e52; }
+        .upload-zone { border: 3px dashed #cbd5e0; border-radius: 8px; padding: 48px; text-align: center; cursor: pointer; transition: all 0.3s; background: #f7fafc; }
+        .upload-zone:hover { border-color: #667eea; background: #edf2f7; }
+        .upload-zone.active { border-color: #667eea; background: #e6f2ff; }
+        input[type="file"] { display: none; }
+        .btn { background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; }
+        .btn:hover { background: #5a67d8; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102,126,234,0.4); }
+        .btn:disabled { background: #cbd5e0; cursor: not-allowed; transform: none; }
+        .btn-secondary { background: #48bb78; }
+        .btn-secondary:hover { background: #38a169; }
+        .slider-group { margin-bottom: 20px; }
+        .slider-label { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; font-weight: 500; }
+        .slider-value { color: #667eea; font-weight: 700; }
+        input[type="range"] { width: 100%; height: 8px; border-radius: 4px; background: #e2e8f0; outline: none; -webkit-appearance: none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #667eea; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .staff-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+        .staff-table th { background: #edf2f7; padding: 12px; text-align: left; font-weight: 600; font-size: 13px; color: #4a5568; border-bottom: 2px solid #cbd5e0; }
+        .staff-table td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+        .staff-table input[type="text"] { width: 100%; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 13px; }
+        .staff-table select { padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 13px; }
+        .checkbox-label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+        .coverage-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px; margin-top: 16px; }
+        .coverage-day { padding: 12px; border-radius: 6px; text-align: center; font-size: 12px; font-weight: 600; }
+        .coverage-met { background: #c6f6d5; color: #22543d; }
+        .coverage-gap { background: #fed7d7; color: #742a2a; }
+        .progress-bar { width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-top: 12px; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); transition: width 0.3s; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-top: 16px; }
+        .stat-card { background: #edf2f7; padding: 16px; border-radius: 8px; text-align: center; }
+        .stat-value { font-size: 32px; font-weight: 700; color: #667eea; }
+        .stat-label { font-size: 12px; color: #718096; margin-top: 4px; }
+        .hidden { display: none; }
+        .alert { padding: 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
+        .alert-success { background: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }
+        .alert-warning { background: #feebc8; color: #744210; border: 1px solid #fbd38d; }
+        .alert-error { background: #fed7d7; color: #742a2a; border: 1px solid #fc8181; }
+        @media (max-width: 768px) { .stats-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v28</span></h1>
+        <p class="subtitle">Upload MyTime export → Auto-balance → Download Excel/CSV</p>
+        <div style="margin-top:10px;padding:8px 14px;background:#e6fffa;border-radius:6px;font-size:13px;color:#234e52;display:inline-block;">
+            ✅ v30 Fixes: PCT weekday/weekend split, RN cap (+2 WD/+1 WE), MID shifts in day balance, MID weekend min 1, + CHG renamed to CN, CN count fixed in coverage summary (min 3), + PAYRO ≠ PTO (payroll code preserved), admin time codes no longer misclassified as shifts
+        </div>
+    </div>
+
+    <!-- HOW TO USE -->
+    <div class="card" id="instructionsSection">
+        <div class="card-title">📖 How to Use This Tool <span class="badge" style="background:#e6fffa;color:#234e52;">Start Here</span></div>
+        <details>
+        <summary style="cursor:pointer;font-size:14px;color:#667eea;font-weight:600;margin-bottom:12px;list-style:none;">▼ Click to expand instructions</summary>
+
+        <!-- OVERVIEW -->
+        <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;border-radius:8px;padding:16px;margin-bottom:16px;">
+            <div style="font-weight:700;font-size:16px;margin-bottom:6px;">🏥 CVICU Schedule Balancer — What This Tool Does</div>
+            <div style="font-size:13px;line-height:1.7;">
+                This tool takes a <strong>MyTime (UKG/Kronos) schedule export</strong> and automatically fills in coverage gaps for both Day and Night shifts — respecting all CVICU scheduling rules, staff type requirements, weekend obligations, and shift separation. It <strong>never modifies ANMs</strong> and preserves self-scheduled shifts wherever possible.
+            </div>
+        </div>
+
+        <!-- STANDALONE / SHARING INFO -->
+        <div style="background:#1a365d;color:white;border-radius:8px;padding:16px;margin-bottom:16px;">
+            <div style="font-weight:700;font-size:15px;margin-bottom:10px;">💻 About This File — Sharing &amp; Browser Requirements</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;font-size:13px;line-height:1.8;">
+                <div>
+                    <div style="color:#90cdf4;font-weight:600;margin-bottom:4px;">📁 Completely Standalone</div>
+                    <div>This is a single <strong>.html file</strong>. Everything — the balancing logic, staff roster, all scheduling rules — is built into the file itself. No login, no account, no subscription required.</div>
+                </div>
+                <div>
+                    <div style="color:#90cdf4;font-weight:600;margin-bottom:4px;">🌐 Works in Any Modern Browser</div>
+                    <div>Open the file in <strong>Google Chrome, Microsoft Edge, Safari, or Firefox</strong>. Simply double-click the file or drag it into a browser window. Chrome or Edge recommended for best experience.</div>
+                </div>
+                <div>
+                    <div style="color:#90cdf4;font-weight:600;margin-bottom:4px;">📤 How to Share</div>
+                    <div>Send the <strong>CVICU_Balancer_v30.html</strong> file as an email attachment, via Teams, or upload to SharePoint. Recipients just open it in their browser — no installation needed.</div>
+                </div>
+                <div>
+                    <div style="color:#90cdf4;font-weight:600;margin-bottom:4px;">🔒 Data Stays on Your Computer</div>
+                    <div>Your schedule data is never uploaded to any server. All processing happens <strong>locally in your browser</strong>. Nothing leaves your machine.</div>
+                </div>
+                <div>
+                    <div style="color:#90cdf4;font-weight:600;margin-bottom:4px;">📶 Internet Connection</div>
+                    <div>An internet connection is only needed for the <strong>Excel download feature</strong> (loads the Excel library from a public CDN). All other features — upload, balance, view results — work fully offline.</div>
+                </div>
+                <div>
+                    <div style="color:#90cdf4;font-weight:600;margin-bottom:4px;">💾 Nothing is Saved Between Sessions</div>
+                    <div>The tool uses your browser's local storage to remember the Master Staff Database between sessions on the <strong>same device</strong>. Clearing browser data will reset it. Always export the master CSV as a backup.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP BY STEP -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:16px;">
+
+            <div style="background:#f0fff4;border:2px solid #9ae6b4;border-radius:8px;padding:16px;">
+                <div style="font-weight:700;color:#22543d;font-size:15px;margin-bottom:10px;">📤 Step 1 — Upload MyTime Export</div>
+                <ol style="font-size:13px;line-height:1.9;padding-left:18px;color:#2d3748;">
+                    <li>In MyTime/UKG, run the <strong>Employee Schedule Monthly report</strong></li>
+                    <li>Export as <strong>.xlsx</strong></li>
+                    <li>Drag &amp; drop the file onto the upload zone, or click to browse</li>
+                    <li>The tool reads all staff, dates, and shift codes automatically</li>
+                </ol>
+                <div style="margin-top:8px;font-size:12px;background:#c6f6d5;padding:6px 8px;border-radius:4px;color:#22543d;">
+                    ✅ Supports 6-week pay period exports
+                </div>
+            </div>
+
+            <div style="background:#ebf8ff;border:2px solid #90cdf4;border-radius:8px;padding:16px;">
+                <div style="font-weight:700;color:#2c5282;font-size:15px;margin-bottom:10px;">⚙️ Step 2 — Set Coverage Requirements</div>
+                <ul style="font-size:13px;line-height:1.9;padding-left:18px;color:#2d3748;">
+                    <li><strong>RN Weekday Min</strong> — target RN count Mon–Fri (default: 15)</li>
+                    <li><strong>RN Weekend Min</strong> — target RN count Sat–Sun (default: 14)</li>
+                    <li><strong>Cap sliders</strong> — max RNs above minimum per day type:<br>
+                        &nbsp;&nbsp;Sat +1, Sun +2, Mon/Tue/Wed/Fri +3, Thu +4</li>
+                    <li><strong>PCT Weekday</strong> min 2, <strong>PCT Weekend</strong> min 1</li>
+                    <li><strong>CN</strong> (Charge Nurse) min 3 per shift</li>
+                    <li>EB and ES minimums (skill mix)</li>
+                </ul>
+            </div>
+
+            <div style="background:#fff5f5;border:2px solid #fc8181;border-radius:8px;padding:16px;">
+                <div style="font-weight:700;color:#742a2a;font-size:15px;margin-bottom:10px;">👥 Step 3 — Review Staff Roster</div>
+                <ul style="font-size:13px;line-height:1.9;padding-left:18px;color:#2d3748;">
+                    <li>Verify each staff member's <strong>Type</strong> (FT/PT/PRN)</li>
+                    <li>Verify their <strong>Shift</strong> (Day AM / Night PM / Mid)</li>
+                    <li>Verify their <strong>Skills</strong> (CN, EB, ES)</li>
+                    <li>Use <strong>💾 Master Staff Database</strong> to save this info permanently — future uploads will auto-fill it</li>
+                    <li>ANMs (Cruz, Rodriguez, Bruce) are marked 🔒 and will never be moved</li>
+                </ul>
+                <div style="margin-top:8px;font-size:12px;background:#fed7d7;padding:6px 8px;border-radius:4px;color:#742a2a;">
+                    ⚠️ Always verify shifts for new staff before balancing
+                </div>
+            </div>
+
+            <div style="background:#f3e8ff;border:2px solid #d6bcfa;border-radius:8px;padding:16px;">
+                <div style="font-weight:700;color:#44337a;font-size:15px;margin-bottom:10px;">🔒 Step 4 (Optional) — Protect Staff</div>
+                <ul style="font-size:13px;line-height:1.9;padding-left:18px;color:#2d3748;">
+                    <li>Check any staff whose schedule <strong>must not be changed</strong></li>
+                    <li>Use for: school commitments, pre-approved vacation, FMLA, medical accommodations</li>
+                    <li>Protected staff are skipped entirely during balancing</li>
+                </ul>
+            </div>
+
+            <div style="background:#fffbeb;border:2px solid #fbd38d;border-radius:8px;padding:16px;">
+                <div style="font-weight:700;color:#744210;font-size:15px;margin-bottom:10px;">⚡ Step 5 — Run Balancing</div>
+                <ul style="font-size:13px;line-height:1.9;padding-left:18px;color:#2d3748;">
+                    <li>Click <strong>🔍 Analyze Schedule</strong> first to preview coverage gaps <em>before</em> making any changes — this button appears in the balancing panel once your file is loaded</li>
+                    <li><strong>☀️ Balance Day Shift</strong> — fills AM + MID shift gaps</li>
+                    <li><strong>🌙 Balance Night Shift</strong> — fills PM shift gaps</li>
+                    <li><strong>🔄 Balance Both</strong> — runs day then night in one click</li>
+                    <li>The algorithm: fills PCT first → CN → EB/ES → RN; respects all caps</li>
+                    <li>Weekends are prioritized first in the fill order</li>
+                </ul>
+                <div style="margin-top:8px;font-size:12px;background:#fef3c7;padding:6px 8px;border-radius:4px;color:#744210;">
+                    💡 If results aren't ideal, adjust cap sliders and re-run
+                </div>
+            </div>
+
+            <div style="background:#f0fff4;border:2px solid #9ae6b4;border-radius:8px;padding:16px;">
+                <div style="font-weight:700;color:#22543d;font-size:15px;margin-bottom:10px;">📥 Step 6 — Download Results</div>
+                <ul style="font-size:13px;line-height:1.9;padding-left:18px;color:#2d3748;">
+                    <li><strong>📥 Download Excel</strong> — multi-sheet workbook:<br>
+                        &nbsp;&nbsp;• Coverage Summary (weekday/weekend view)<br>
+                        &nbsp;&nbsp;• Day Shift (ANMs → MID RNs → RNs → PCTs)<br>
+                        &nbsp;&nbsp;• Night Shift<br>
+                        &nbsp;&nbsp;• Original MyTime Import (pre-balance)</li>
+                    <li><strong>📋 Download Move Report</strong> — CSV of every change made</li>
+                    <li>Review the <strong>Move Tracker</strong> section to see Added vs Moved per staff</li>
+                </ul>
+            </div>
+
+        </div>
+
+        <!-- IMPORTANT RULES SUMMARY -->
+        <div style="background:#2d3748;color:white;border-radius:8px;padding:16px;margin-bottom:16px;">
+            <div style="font-weight:700;font-size:15px;margin-bottom:10px;">⚡ Key Rules to Know</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;font-size:13px;line-height:1.8;">
+                <div>
+                    <div style="color:#fbd38d;font-weight:600;">Shift Separation</div>
+                    <div>Day (AM) and Night (PM) staff are completely separate pools. The tool never crosses them over.</div>
+                </div>
+                <div>
+                    <div style="color:#fbd38d;font-weight:600;">Mid Shift (MID)</div>
+                    <div>Counts toward Day coverage. Min 1 MID on Sat and Sun. Kesbeh &amp; Hickman are MID.</div>
+                </div>
+                <div>
+                    <div style="color:#fbd38d;font-weight:600;">PTO = Worked Shift</div>
+                    <div>PTO, FMLA, LOA count toward the 18-shift (FT) / 12-shift (PT) minimum. SICK does not.</div>
+                </div>
+                <div>
+                    <div style="color:#fbd38d;font-weight:600;">Weekend (Night)</div>
+                    <div>Friday counts as a weekend day for night shift staff. Fri/Sat/Sun = 7 required.</div>
+                </div>
+                <div>
+                    <div style="color:#fbd38d;font-weight:600;">Late Submitters</div>
+                    <div>FT &lt;18 or PT &lt;12 shifts submitted = classified Late → gets unlimited moves assigned.</div>
+                </div>
+                <div>
+                    <div style="color:#fbd38d;font-weight:600;">Move Caps</div>
+                    <div>Compliant staff: max 2 changes. Non-compliant: max 6. Blank fills are free (not counted as moves).</div>
+                </div>
+                <div>
+                    <div style="color:#fbd38d;font-weight:600;">PAYRO Code</div>
+                    <div>ANM payroll admin code (4am–12pm office shift). Counts as worked, shows as PAYRO not PTO.</div>
+                </div>
+                <div>
+                    <div style="color:#fbd38d;font-weight:600;">RN Cap (no +5)</div>
+                    <div>Max overage: Sat +1, Sun +2, Mon/Tue/Wed/Fri +3, Thu +4. Hard ceiling enforced.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TIPS -->
+        <div style="background:#f7fafc;border:1px solid #cbd5e0;border-radius:8px;padding:14px;">
+            <div style="font-weight:700;font-size:14px;margin-bottom:8px;">💡 Tips &amp; Troubleshooting</div>
+            <div style="font-size:13px;line-height:1.9;color:#4a5568;">
+                <strong>First time setup:</strong> After loading your first MyTime file and verifying the roster, click <em>💾 Save Current as Master</em>. Every future upload will auto-fill Job/Type/Shift/Skills from that saved database.<br>
+                <strong>Staff showing wrong shift type?</strong> Edit their Shift dropdown in Step 3 and save as master. The Job field in MyTime must contain "(AM)", "(PM)", or "(MIDSHIFT)" for auto-detection.<br>
+                <strong>Coverage still showing gaps after balancing?</strong> Some gaps can't be filled if all eligible staff have hit their weekly cap (3 shifts/week FT, 2 shifts/week PT). This is a genuine staffing shortage that requires agency or overtime.<br>
+                <strong>Move tracker shows too many added shifts for one person?</strong> Always click Balance fresh — don't click the button multiple times in a row without reloading, as trackers reset on each run.<br>
+                <strong>ANM schedule looks different from MyTime?</strong> ANMs are never moved. If their schedule looks off, re-export MyTime with a fresh file — the issue is in the source data, not the tool.
+            </div>
+        </div>
+
+        </details>
+    </div>
+
+    <!-- PERMANENT RULES REFERENCE -->
+    <div class="card" id="rulesSection">
+        <div class="card-title">📋 Scheduling Rules Reference <span class="badge" style="background:#fef3c7;color:#92400e;">Always Active</span></div>
+        <details open>
+        <summary style="cursor:pointer;font-size:14px;color:#667eea;font-weight:600;margin-bottom:12px;list-style:none;">▼ Click to collapse rules</summary>
+
+        <!-- CODE REFERENCE TABLE -->
+        <div style="background:#1a365d;color:white;border-radius:8px;padding:14px 16px;margin-bottom:16px;">
+            <div style="font-weight:700;font-size:16px;margin-bottom:4px;">📊 CODE REFERENCE — MyTime to Tool Translation</div>
+            <div style="font-size:12px;color:#90cdf4;">Use this reference to understand how MyTime codes translate and what counts toward requirements</div>
+        </div>
+
+        <!-- WORKING SHIFTS -->
+        <div style="margin-bottom:16px;">
+            <div style="background:#22543d;color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px;">✅ WORKING SHIFTS (Count Toward Requirements)</div>
+            <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead><tr style="background:#c6f6d5;">
+                    <th style="padding:8px;text-align:left;border:1px solid #9ae6b4;">MyTime Code(s)</th>
+                    <th style="padding:8px;text-align:left;border:1px solid #9ae6b4;">Tool Code</th>
+                    <th style="padding:8px;text-align:left;border:1px solid #9ae6b4;">Description</th>
+                    <th style="padding:8px;text-align:left;border:1px solid #9ae6b4;">Counts Toward</th>
+                    <th style="padding:8px;border:1px solid #9ae6b4;">Weekend?</th>
+                    <th style="padding:8px;border:1px solid #9ae6b4;">Sunday?</th>
+                    <th style="padding:8px;border:1px solid #9ae6b4;">Total Shifts?</th>
+                </tr></thead>
+                <tbody>
+                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">6T19Q, 6T19, 7A</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">7A</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Day Shift (7am–7pm)</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">RN, PCT, CN, EB, ES</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
+                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">10W2Q, 10W2, MID</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">MID</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Mid Shift (10am–10pm)</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">RN, PCT, CN, EB, ES</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
+                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">18T7Q, 18T7, 7P</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">7P</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Night Shift (7pm–7am)</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">RN, PCT, CN, EB, ES</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
+                </tbody>
+            </table>
+            </div>
+        </div>
+
+        <!-- TIME OFF / NON-WORKING -->
+        <div style="margin-bottom:16px;">
+            <div style="background:#742a2a;color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px;">❌ TIME OFF / NON-WORKING (Do NOT Count Toward Requirements)</div>
+            <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead><tr style="background:#fed7d7;">
+                    <th style="padding:8px;text-align:left;border:1px solid #fc8181;">MyTime Code(s)</th>
+                    <th style="padding:8px;text-align:left;border:1px solid #fc8181;">Tool Code</th>
+                    <th style="padding:8px;text-align:left;border:1px solid #fc8181;">Description</th>
+                    <th style="padding:8px;text-align:left;border:1px solid #fc8181;">Counts Toward</th>
+                    <th style="padding:8px;text-align:left;border:1px solid #fc8181;">Notes</th>
+                </tr></thead>
+                <tbody>
+                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">PTO</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">PTO</td><td style="padding:7px 8px;border:1px solid #fc8181;">Paid Time Off</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">SHIFT requirement ✅</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Pre-approved time off</td></tr>
+                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">VAC, VACATION</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">PTO</td><td style="padding:7px 8px;border:1px solid #fc8181;">Vacation</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">SHIFT requirement ✅</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Vacation leave</td></tr>
+                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">SICK</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">SICK</td><td style="padding:7px 8px;border:1px solid #fc8181;">Sick Leave</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;font-weight:600;">Nothing ❌</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Sick time — does NOT fulfill shift requirement</td></tr>
+                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">R/O, RO</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">R/O</td><td style="padding:7px 8px;border:1px solid #fc8181;">Requested Off</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;font-weight:600;">Nothing ❌</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Staff-requested day off</td></tr>
+                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">HOL, HOLIDAY</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">HOL</td><td style="padding:7px 8px;border:1px solid #fc8181;">Holiday</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;font-weight:600;">Nothing ❌</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Holiday leave</td></tr>
+                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">FMLA</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">FMLA</td><td style="padding:7px 8px;border:1px solid #fc8181;">FMLA Leave</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">SHIFT requirement ✅</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Family/Medical Leave</td></tr>
+                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">LOA</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">LOA</td><td style="padding:7px 8px;border:1px solid #fc8181;">Leave of Absence</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">SHIFT requirement ✅</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Extended leave</td></tr>
+                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">(blank/empty)</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">—</td><td style="padding:7px 8px;border:1px solid #fc8181;">No Shift Scheduled</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;font-weight:600;">Nothing ❌</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Available day, no shift assigned</td></tr>
+                    <tr style="background:#fffbeb;"><td style="padding:7px 8px;border:1px solid #fc8181;">PAYRO</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">PAYRO</td><td style="padding:7px 8px;border:1px solid #fc8181;">Payroll</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">AM/PM SHIFT requirement ✅</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#744210;font-style:italic;font-weight:600;">Payroll Time for ANMs — 8 Hour Shift</td></tr>
+                </tbody>
+            </table>
+            </div>
+        </div>
+
+        <!-- SPECIAL CODES -->
+        <div style="margin-bottom:16px;">
+            <div style="background:#744210;color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px;">⚠️ SPECIAL CODES (Check Unit Policy)</div>
+            <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead><tr style="background:#fef3c7;">
+                    <th style="padding:8px;text-align:left;border:1px solid #fbd38d;">MyTime Code(s)</th>
+                    <th style="padding:8px;text-align:left;border:1px solid #fbd38d;">Tool Code</th>
+                    <th style="padding:8px;text-align:left;border:1px solid #fbd38d;">Description</th>
+                    <th style="padding:8px;text-align:left;border:1px solid #fbd38d;">Default Behavior</th>
+                    <th style="padding:8px;text-align:left;border:1px solid #fbd38d;">Notes</th>
+                </tr></thead>
+                <tbody>
+                    <tr style="background:#fffff0;"><td style="padding:7px 8px;border:1px solid #fbd38d;">ORI, ORIENT</td><td style="padding:7px 8px;border:1px solid #fbd38d;font-weight:700;">ORI</td><td style="padding:7px 8px;border:1px solid #fbd38d;">Orientation</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#744210;">Counted as working; not included in balance</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#718096;font-style:italic;">New hire orientation</td></tr>
+                    <tr style="background:#fffff0;"><td style="padding:7px 8px;border:1px solid #fbd38d;">ADMIN<br><span style="font-size:11px;color:#744210;font-weight:600;">4:00 AM (early AM times)</span></td><td style="padding:7px 8px;border:1px solid #fbd38d;font-weight:700;">ADMIN</td><td style="padding:7px 8px;border:1px solid #fbd38d;">Administrative / Office Shift</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#22543d;font-weight:600;">Counts toward shift minimum ✅<br>NOT included in coverage balance</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#718096;font-style:italic;">Meetings, admin duties.<br><strong>4:00 AM = Rowena's 4am–12pm office shift</strong></td></tr>
+                    <tr style="background:#fffff0;"><td style="padding:7px 8px;border:1px solid #fbd38d;">EDU, EDUCATION</td><td style="padding:7px 8px;border:1px solid #fbd38d;font-weight:700;">EDU</td><td style="padding:7px 8px;border:1px solid #fbd38d;">Education Day</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#744210;">Counted as working; not included in balance</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#718096;font-style:italic;">Training, CEUs</td></tr>
+                    <tr style="background:#fffff0;"><td style="padding:7px 8px;border:1px solid #fbd38d;">FLOAT</td><td style="padding:7px 8px;border:1px solid #fbd38d;font-weight:700;">FLOAT</td><td style="padding:7px 8px;border:1px solid #fbd38d;">Float to Another Unit</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#744210;">Counted as working; not included in balance</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#718096;font-style:italic;">Working but not on this unit</td></tr>
+                    <tr style="background:#fffff0;"><td style="padding:7px 8px;border:1px solid #fbd38d;">CALL, ON-CALL</td><td style="padding:7px 8px;border:1px solid #fbd38d;font-weight:700;">CALL</td><td style="padding:7px 8px;border:1px solid #fbd38d;">On-Call</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#742a2a;">Not counted</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#718096;font-style:italic;">Available if needed</td></tr>
+                    <tr style="background:#fffff0;"><td style="padding:7px 8px;border:1px solid #fbd38d;">PRECEPT</td><td style="padding:7px 8px;border:1px solid #fbd38d;font-weight:700;">PRECEPT</td><td style="padding:7px 8px;border:1px solid #fbd38d;">Precepting</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#22543d;font-weight:600;">Counted as working; included in balance</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#718096;font-style:italic;">Training new staff while working</td></tr>
+                </tbody>
+            </table>
+            </div>
+        </div>
+
+        <!-- QUICK SUMMARY -->
+        <div style="margin-bottom:16px;">
+            <div style="background:#2d3748;color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px;">✏️ QUICK SUMMARY</div>
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <tr style="background:#f0fff4;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What counts as a WORKING shift?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;">7A (Day), MID (Mid), and 7P (Night) shifts</td></tr>
+                <tr style="background:#fff;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Do MID shifts count toward weekends?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;">YES — MID shifts count toward ALL requirements</td></tr>
+                <tr style="background:#f0fff4;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Does PTO count toward shift requirement?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#22543d;font-weight:600;">YES — approved time off counts toward total shifts (18 FT / 12 PT)</td></tr>
+                <tr style="background:#fff5f5;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Does SICK count toward shift requirement?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#742a2a;font-weight:600;">NO — sick time does NOT fulfill shift minimum</td></tr>
+                <tr style="background:#fff;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Does R/O count toward any requirement?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#742a2a;">NO — does not count toward any requirement</td></tr>
+                <tr style="background:#f0fff4;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Does FMLA / LOA count?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#22543d;font-weight:600;">YES — protected leave counts toward shift requirement</td></tr>
+                <tr style="background:#fffbeb;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What is PAYRO?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#744210;font-weight:600;">Payroll time for ANMs (8 hr shift) — counts toward AM/PM shift requirement. NOT a PTO request.</td></tr>
+                <tr style="background:#ebf8ff;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What about Night shifts (7P)?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;">YES — counts toward requirements and weekend totals</td></tr>
+            </table>
+        </div>
+
+        <!-- SCHEDULING ENGINE RULES -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-top:4px;">
+            <div style="background:#f0fff4;border:2px solid #9ae6b4;border-radius:8px;padding:14px;">
+                <div style="font-weight:700;color:#22543d;font-size:14px;margin-bottom:8px;">📅 Minimum Shifts (6-Week Period)</div>
+                <table style="width:100%;font-size:12px;border-collapse:collapse;">
+                    <tr style="border-bottom:1px solid #c6f6d5;"><td style="padding:3px 6px;font-weight:600;">FT</td><td style="padding:3px 6px;">18 shifts (3/week × 6 weeks)</td></tr>
+                    <tr style="border-bottom:1px solid #c6f6d5;"><td style="padding:3px 6px;font-weight:600;">PT</td><td style="padding:3px 6px;">12 shifts (2/week × 6 weeks)</td></tr>
+                    <tr><td style="padding:3px 6px;font-weight:600;">PRN</td><td style="padding:3px 6px;">1–2 shifts minimum</td></tr>
+                </table>
+            </div>
+            <div style="background:#ebf8ff;border:2px solid #90cdf4;border-radius:8px;padding:14px;">
+                <div style="font-weight:700;color:#2c5282;font-size:14px;margin-bottom:8px;">📅 Weekend Requirements</div>
+                <table style="width:100%;font-size:12px;border-collapse:collapse;">
+                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">FT Day</td><td style="padding:3px 6px;">5 weekends + 2 Sundays</td></tr>
+                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">FT Night</td><td style="padding:3px 6px;">7 weekend shifts</td></tr>
+                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">PT</td><td style="padding:3px 6px;">4 weekends + 2 Sundays (day)</td></tr>
+                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">Mid</td><td style="padding:3px 6px;">≤3 weekend shifts (cap, not floor)</td></tr>
+                    <tr><td style="padding:3px 6px;font-weight:600;">PRN</td><td style="padding:3px 6px;">No weekend requirement</td></tr>
+                </table>
+            </div>
+            <div style="background:#fff5f5;border:2px solid #fc8181;border-radius:8px;padding:14px;">
+                <div style="font-weight:700;color:#742a2a;font-size:14px;margin-bottom:8px;">📅 Weekend Definition</div>
+                <table style="width:100%;font-size:12px;border-collapse:collapse;">
+                    <tr style="border-bottom:1px solid #fc8181;"><td style="padding:3px 6px;font-weight:600;">Day shift</td><td style="padding:3px 6px;">Sat &amp; Sun only</td></tr>
+                    <tr style="border-bottom:1px solid #fc8181;"><td style="padding:3px 6px;font-weight:600;">Night shift</td><td style="padding:3px 6px;"><strong>Fri</strong>, Sat &amp; Sun ← Friday counts!</td></tr>
+                    <tr><td style="padding:3px 6px;font-weight:600;">Mid shift</td><td style="padding:3px 6px;">Sat &amp; Sun only</td></tr>
+                </table>
+            </div>
+            <div style="background:#f3e8ff;border:2px solid #d6bcfa;border-radius:8px;padding:14px;">
+                <div style="font-weight:700;color:#44337a;font-size:14px;margin-bottom:8px;">🔄 Move Cap Rules</div>
+                <table style="width:100%;font-size:12px;border-collapse:collapse;">
+                    <tr style="border-bottom:1px solid #d6bcfa;"><td style="padding:3px 6px;font-weight:600;">Late submitter</td><td style="padding:3px 6px;">Unlimited (cap: 99)</td></tr>
+                    <tr style="border-bottom:1px solid #d6bcfa;"><td style="padding:3px 6px;font-weight:600;">Non-compliant</td><td style="padding:3px 6px;">Max 6 moves</td></tr>
+                    <tr style="border-bottom:1px solid #d6bcfa;"><td style="padding:3px 6px;font-weight:600;">Compliant</td><td style="padding:3px 6px;">Max 2 moves</td></tr>
+                    <tr><td style="padding:3px 6px;font-weight:600;">Blank fills</td><td style="padding:3px 6px;">FREE — never counted as move</td></tr>
+                </table>
+            </div>
+            <div style="background:#f7fafc;border:2px solid #cbd5e0;border-radius:8px;padding:14px;">
+                <div style="font-weight:700;color:#2d3748;font-size:14px;margin-bottom:8px;">🔒 Protected Staff</div>
+                <table style="width:100%;font-size:12px;border-collapse:collapse;">
+                    <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:3px 6px;font-weight:600;">ANMs</td><td style="padding:3px 6px;">Cruz, Rodriguez, Bruce — never moved</td></tr>
+                    <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:3px 6px;font-weight:600;">PRN</td><td style="padding:3px 6px;">Never moved; no weekend req</td></tr>
+                    <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:3px 6px;font-weight:600;">User-protected</td><td style="padding:3px 6px;">School, FMLA, vacation selections</td></tr>
+                    <tr><td style="padding:3px 6px;font-weight:600;">Shift separation</td><td style="padding:3px 6px;">AM ↔ PM pools never cross</td></tr>
+                </table>
+            </div>
+            <div style="background:#fffbeb;border:2px solid #fbd38d;border-radius:8px;padding:14px;">
+                <div style="font-weight:700;color:#744210;font-size:14px;margin-bottom:8px;">💼 PTO = Worked Shift</div>
+                <table style="width:100%;font-size:12px;border-collapse:collapse;">
+                    <tr style="border-bottom:1px solid #fbd38d;"><td style="padding:3px 6px;font-weight:600;">FT</td><td style="padding:3px 6px;">3 PTO/FMLA/LOA in week = week done ✅</td></tr>
+                    <tr style="border-bottom:1px solid #fbd38d;"><td style="padding:3px 6px;font-weight:600;">PT</td><td style="padding:3px 6px;">2 PTO/FMLA/LOA in week = week done ✅</td></tr>
+                    <tr style="border-bottom:1px solid #fbd38d;"><td style="padding:3px 6px;font-weight:600;">SICK</td><td style="padding:3px 6px;color:#742a2a;">Does NOT count toward requirements ❌</td></tr>
+                    <tr><td style="padding:3px 6px;font-weight:600;">Total</td><td style="padding:3px 6px;">PTO+FMLA+LOA count toward 18/12 minimum</td></tr>
+                </table>
+            </div>
+        </div>
+        </details>
+    </div>
+
+    <!-- FEEDBACK, DEBUGGING & SUGGESTIONS -->
+    <div class="card" id="feedbackSection" style="border:2px solid #667eea;">
+        <div class="card-title" style="color:#667eea;">
+            💬 Feedback, Bug Reports &amp; Suggestions
+            <span class="badge" style="background:#667eea;color:white;">For End Users</span>
+        </div>
+
+        <div style="background:linear-gradient(135deg,#434190 0%,#553c9a 100%);color:white;border-radius:8px;padding:16px;margin-bottom:16px;">
+            <div style="font-weight:700;font-size:15px;margin-bottom:8px;">📣 This is your voice. Use it.</div>
+            <div style="font-size:13px;line-height:1.8;">
+                This tool is built <em>for the CVICU team</em> and will keep getting better with your input.
+                If something doesn't look right, a shift got miscounted, a rule was applied incorrectly,
+                or you have an idea to make this more useful — <strong>this is where to post it.</strong>
+                Copy and paste your feedback below and send it back to the tool administrator.
+                Every report helps make the next version more accurate.
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:20px;">
+            <div style="background:#fff5f5;border:2px solid #fc8181;border-radius:8px;padding:14px;">
+                <div style="font-weight:700;color:#742a2a;font-size:14px;margin-bottom:8px;">🐛 Reporting a Bug</div>
+                <div style="font-size:13px;color:#4a5568;line-height:1.8;">
+                    Please include:<br>
+                    • <strong>Which shift</strong> (Day / Night / Both)<br>
+                    • <strong>Which staff member</strong> is affected<br>
+                    • <strong>What the tool showed</strong> vs what you expected<br>
+                    • <strong>Date(s)</strong> where the issue occurred<br>
+                    • Screenshot if possible
+                </div>
+            </div>
+            <div style="background:#fffbeb;border:2px solid #fbd38d;border-radius:8px;padding:14px;">
+                <div style="font-weight:700;color:#744210;font-size:14px;margin-bottom:8px;">⚠️ Reporting a Coverage Issue</div>
+                <div style="font-size:13px;color:#4a5568;line-height:1.8;">
+                    Please include:<br>
+                    • <strong>Date</strong> with the coverage problem<br>
+                    • <strong>Actual count</strong> shown in the Excel output<br>
+                    • <strong>Expected count</strong> based on unit policy<br>
+                    • Whether it was a <strong>weekday or weekend</strong><br>
+                    • Day shift or Night shift
+                </div>
+            </div>
+            <div style="background:#f0fff4;border:2px solid #9ae6b4;border-radius:8px;padding:14px;">
+                <div style="font-weight:700;color:#22543d;font-size:14px;margin-bottom:8px;">💡 Suggestions &amp; Improvements</div>
+                <div style="font-size:13px;color:#4a5568;line-height:1.8;">
+                    Ideas welcome — big or small:<br>
+                    • New scheduling rules to enforce<br>
+                    • Different output format needs<br>
+                    • Staff-specific adjustments<br>
+                    • Workflow improvements<br>
+                    • Anything that would save you time
+                </div>
+            </div>
+            <div style="background:#ebf8ff;border:2px solid #90cdf4;border-radius:8px;padding:14px;">
+                <div style="font-weight:700;color:#2c5282;font-size:14px;margin-bottom:8px;">📋 How to Submit</div>
+                <div style="font-size:13px;color:#4a5568;line-height:1.8;">
+                    1. Type your feedback in the box below<br>
+                    2. Click <strong>📋 Copy Feedback</strong><br>
+                    3. Paste into an <strong>email to:</strong><br>
+                    <div style="margin:8px 0;padding:8px 12px;background:#2c5282;color:white;border-radius:6px;font-weight:600;font-size:13px;letter-spacing:0.3px;">
+                        📧 Rowena.Cruz@UTSouthwestern.edu
+                    </div>
+                    4. Attach your Excel output or a screenshot if relevant<br><br>
+                    <em>Your feedback goes directly into the next version.</em>
+                </div>
+            </div>
+        </div>
+
+        <!-- FEEDBACK FORM -->
+        <div style="background:#f7fafc;border:1px solid #cbd5e0;border-radius:8px;padding:16px;margin-bottom:12px;">
+            <div style="font-weight:600;font-size:14px;color:#2d3748;margin-bottom:12px;">✍️ Write Your Feedback Here</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                <div>
+                    <label style="display:block;font-size:13px;font-weight:600;color:#4a5568;margin-bottom:4px;">Your Name (optional)</label>
+                    <input type="text" id="fbName" placeholder="e.g. Jane Smith, RN" style="width:100%;padding:8px 10px;border:1px solid #cbd5e0;border-radius:6px;font-size:13px;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="display:block;font-size:13px;font-weight:600;color:#4a5568;margin-bottom:4px;">Type of Feedback</label>
+                    <select id="fbType" style="width:100%;padding:8px 10px;border:1px solid #cbd5e0;border-radius:6px;font-size:13px;background:white;">
+                        <option value="Bug Report 🐛">Bug Report 🐛</option>
+                        <option value="Coverage Issue ⚠️">Coverage Issue ⚠️</option>
+                        <option value="Suggestion 💡">Suggestion 💡</option>
+                        <option value="Question ❓">Question ❓</option>
+                        <option value="General Comment 💬">General Comment 💬</option>
+                    </select>
+                </div>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="display:block;font-size:13px;font-weight:600;color:#4a5568;margin-bottom:4px;">Feedback / Details <span style="color:#e53e3e;">*</span></label>
+                <textarea id="fbText" rows="5" placeholder="Describe the issue, suggestion, or comment in as much detail as possible. Include dates, staff names, shift type, and what you expected vs. what the tool did..." style="width:100%;padding:10px;border:1px solid #cbd5e0;border-radius:6px;font-size:13px;resize:vertical;box-sizing:border-box;font-family:inherit;"></textarea>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="display:block;font-size:13px;font-weight:600;color:#4a5568;margin-bottom:4px;">Steps to Reproduce (for bugs)</label>
+                <textarea id="fbSteps" rows="3" placeholder="e.g. 1. Uploaded MyTime file for 4/19–5/30  2. Ran Balance Both  3. Opened Night Coverage sheet  4. Noticed RN count on 4/24 was +17..." style="width:100%;padding:10px;border:1px solid #cbd5e0;border-radius:6px;font-size:13px;resize:vertical;box-sizing:border-box;font-family:inherit;"></textarea>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <button onclick="copyFeedback()" class="btn" style="background:#667eea;color:white;">📋 Copy Feedback to Clipboard</button>
+                <button onclick="clearFeedback()" class="btn btn-secondary">🗑️ Clear</button>
+            </div>
+            <div id="fbCopyConfirm" style="display:none;margin-top:10px;padding:10px 14px;background:#c6f6d5;color:#22543d;border-radius:6px;font-size:13px;">
+                ✅ <strong>Copied!</strong> Now paste it into an email to <strong>Rowena.Cruz@UTSouthwestern.edu</strong> — attach a screenshot or your Excel output if helpful.
+            </div>
+        </div>
+
+        <div style="font-size:12px;color:#a0aec0;text-align:center;padding-top:4px;">
+            Thank you for helping improve this tool for the entire CVICU team. 🏥 &nbsp;|&nbsp; Contact: <strong style="color:#667eea;">Rowena.Cruz@UTSouthwestern.edu</strong>
+        </div>
+    </div>
+
+    <div class="card" id="uploadSection">
+        <div class="card-title">📤 Step 1: Upload MyTime Export <span class="badge">Required</span></div>
+        <div class="upload-zone" id="uploadZone">
+            <div style="font-size:48px;margin-bottom:16px;">📄</div>
+            <div style="font-size:16px;font-weight:600;margin-bottom:8px;">Drop MyTime Excel file here or click to browse</div>
+            <div style="font-size:14px;color:#718096;">Supports .xlsx files from UKG/Kronos</div>
+            <input type="file" id="fileInput" accept=".xlsx">
+        </div>
+        <div id="fileInfo" class="hidden" style="margin-top:16px;padding:16px;background:#e6f2ff;border-radius:8px;">
+            <strong>✓ File loaded:</strong> <span id="fileName"></span><br>
+            <strong>Pay Period:</strong> <span id="payPeriod"></span><br>
+            <strong>Staff Count:</strong> <span id="staffCount"></span>
+        </div>
+    </div>
+
+    <div class="card hidden" id="requirementsSection">
+        <div class="card-title">⚙️ Step 2: Set Coverage Requirements</div>
+        <div style="font-size:13px;color:#718096;margin-bottom:12px;">Weekday = Mon–Fri &nbsp;|&nbsp; Weekend = Sat/Sun &nbsp;|&nbsp; <strong>Cap = Min + offset</strong> — tweak to control max RN overage</div>
+
+        <!-- RN MIN + CAP ROW -->
+        <div style="background:#edf2f7;border-radius:8px;padding:16px;margin-bottom:12px;">
+            <div style="font-weight:600;font-size:14px;margin-bottom:12px;">👩‍⚕️ RN Coverage — Minimum &amp; Max Cap (+/- over min)</div>
+            <div class="stats-grid">
+                <div>
+                    <div class="slider-group">
+                        <div class="slider-label"><span>☀️ RN Weekday Min</span><span class="slider-value" id="rnWdValue">15</span></div>
+                        <input type="range" id="rnWdSlider" min="1" max="30" value="15">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Mon/Tue/Wed/Fri Max offset</span>
+                            <span class="slider-value">+<span id="rnWdCapVal">3</span> → max <span id="rnWdMaxDisplay">18</span></span>
+                        </div>
+                        <input type="range" id="rnWdCapSlider" min="0" max="4" value="3">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>🔧 Thursday Max offset (dressing day)</span>
+                            <span class="slider-value">+<span id="rnThuCapVal">4</span> → max <span id="rnThuMaxDisplay">19</span></span>
+                        </div>
+                        <input type="range" id="rnThuCapSlider" min="0" max="4" value="4">
+                    </div>
+                </div>
+                <div>
+                    <div class="slider-group">
+                        <div class="slider-label"><span>📅 RN Weekend Min</span><span class="slider-value" id="rnWeValue">14</span></div>
+                        <input type="range" id="rnWeSlider" min="1" max="30" value="14">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Saturday Max offset</span>
+                            <span class="slider-value">+<span id="rnSatCapVal">1</span> → max <span id="rnSatMaxDisplay">15</span></span>
+                        </div>
+                        <input type="range" id="rnSatCapSlider" min="0" max="4" value="1">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Sunday Max offset (dressing day)</span>
+                            <span class="slider-value">+<span id="rnSunCapVal">2</span> → max <span id="rnSunMaxDisplay">16</span></span>
+                        </div>
+                        <input type="range" id="rnSunCapSlider" min="0" max="4" value="2">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- OTHER MINIMUMS ROW -->
+        <div class="stats-grid">
+            <div>
+                <div class="slider-group">
+                    <div class="slider-label"><span>☀️ PCT Weekday Min</span><span class="slider-value" id="pctWdValue">2</span></div>
+                    <input type="range" id="pctWdSlider" min="1" max="10" value="2">
+                </div>
+            </div>
+            <div>
+                <div class="slider-group">
+                    <div class="slider-label"><span>📅 PCT Weekend Min</span><span class="slider-value" id="pctWeValue">1</span></div>
+                    <input type="range" id="pctWeSlider" min="0" max="10" value="1">
+                </div>
+            </div>
+            <div>
+                <div class="slider-group">
+                    <div class="slider-label"><span>CN Minimum (Charge Nurse)</span><span class="slider-value" id="chgValue">3</span></div>
+                    <input type="range" id="chgSlider" min="1" max="10" value="3">
+                </div>
+            </div>
+            <div>
+                <div class="slider-group">
+                    <div class="slider-label"><span>EB Minimum</span><span class="slider-value" id="ebValue">2</span></div>
+                    <input type="range" id="ebSlider" min="1" max="10" value="2">
+                </div>
+            </div>
+            <div>
+                <div class="slider-group">
+                    <div class="slider-label"><span>ES Minimum</span><span class="slider-value" id="esValue">2</span></div>
+                    <input type="range" id="esSlider" min="1" max="10" value="2">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card hidden" id="rosterSection">
+        <div class="card-title">👥 Step 3: Review Staff Roster &amp; Skills <span class="badge">Auto-saved</span></div>
+        <div style="margin-bottom:16px;font-size:14px;color:#718096;">Edit skills (EB/ES/CN) and staff types. Changes are saved automatically.</div>
+        <div class="alert alert-warning" style="margin-bottom:16px;">
+            <strong>⚠️ Protected Staff:</strong> ANMs (Cruz, Rodriguez, Bruce) will never be moved during balancing.
+        </div>
+        <div style="background:#f7fafc;border:2px solid #667eea;border-radius:8px;padding:16px;margin-bottom:20px;">
+            <div style="font-weight:600;font-size:16px;color:#667eea;margin-bottom:12px;">💾 Master Staff Database</div>
+            <div style="font-size:14px;color:#718096;margin-bottom:12px;">Upload a master CSV once to save all staff info. Auto-loads on every MyTime import.</div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+                <button class="btn btn-secondary" onclick="document.getElementById('masterCSVUpload').click()">📤 Upload Master CSV</button>
+                <button class="btn btn-secondary" onclick="saveCurrentAsMaster()">💾 Save Current as Master</button>
+                <button class="btn btn-secondary" onclick="showAddEmployeeForm()">➕ Add New Employee</button>
+                <button class="btn btn-secondary" onclick="downloadMasterCSV()">📥 Export Master CSV</button>
+                <button class="btn btn-secondary" onclick="clearMasterDatabase()" style="background:#f56565;">🗑️ Clear Database</button>
+            </div>
+            <input type="file" id="masterCSVUpload" accept=".csv" style="display:none;" onchange="handleMasterCSVUpload(event)">
+            <div style="font-size:13px;color:#718096;margin-bottom:8px;font-style:italic;">💡 Tip: Upload your edited file once, click "Save Current as Master", then all future MyTime uploads will auto-fill!</div>
+            <div id="masterDatabaseStatus" style="font-size:14px;color:#667eea;font-weight:600;"></div>
+        </div>
+
+        <div id="addEmployeeForm" class="hidden" style="background:#fff;border:2px solid #667eea;border-radius:8px;padding:20px;margin-bottom:20px;">
+            <div style="font-weight:600;font-size:16px;margin-bottom:16px;">➕ Add New Employee</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div><label style="display:block;font-size:14px;margin-bottom:4px;font-weight:600;">Name:</label><input type="text" id="newEmployeeName" placeholder="Last, First" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:6px;"></div>
+                <div><label style="display:block;font-size:14px;margin-bottom:4px;font-weight:600;">Job:</label><select id="newEmployeeJob" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:6px;"><option value="RN">RN</option><option value="PCT">PCT</option><option value="HUC">HUC</option><option value="AMGR">AMGR</option></select></div>
+                <div><label style="display:block;font-size:14px;margin-bottom:4px;font-weight:600;">Type:</label><select id="newEmployeeType" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:6px;"><option value="FT">FT (Full-time)</option><option value="PT">PT (Part-time)</option><option value="PRN">PRN</option></select></div>
+                <div><label style="display:block;font-size:14px;margin-bottom:4px;font-weight:600;">Shift:</label><select id="newEmployeeShift" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:6px;"><option value="AM">Day (AM)</option><option value="PM">Night (PM)</option><option value="MIDSHIFT">Mid</option><option value="">(unassigned)</option></select></div>
+                <div style="grid-column:span 2;"><label style="display:block;font-size:14px;margin-bottom:4px;font-weight:600;">Skills:</label><input type="text" id="newEmployeeSkills" placeholder="CN, ES, EB, etc." style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:6px;"></div>
+            </div>
+            <div style="display:flex;gap:12px;margin-top:16px;">
+                <button class="btn" onclick="addNewEmployee()">Add Employee</button>
+                <button class="btn btn-secondary" onclick="hideAddEmployeeForm()">Cancel</button>
+            </div>
+        </div>
+
+        <div style="overflow-x:auto;">
+            <table class="staff-table" id="staffTable">
+                <thead><tr><th>Name</th><th>Job</th><th>Type</th><th>Shift</th><th>Skills</th></tr></thead>
+                <tbody id="staffTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card hidden" id="balanceSection">
+        <div class="card-title">🔒 Protect Staff From Changes (Optional)</div>
+        <div style="margin-bottom:16px;font-size:14px;color:#718096;">Select staff whose schedules should NOT be modified during balancing</div>
+        <div id="protectionControls" class="hidden">
+            <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+                <button class="btn btn-secondary" onclick="selectAllProtection()">✓ Select All</button>
+                <button class="btn btn-secondary" onclick="deselectAllProtection()">✗ Deselect All</button>
+                <select id="protectionReason" style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;">
+                    <option value="">Reason (optional)</option>
+                    <option value="school">🎓 School commitment</option>
+                    <option value="vacation">✈️ Pre-approved vacation</option>
+                    <option value="medical">🏥 Medical accommodation</option>
+                    <option value="fmla">👶 FMLA/Maternity</option>
+                    <option value="special">🤝 Special arrangement</option>
+                </select>
+            </div>
+            <div id="protectionList" style="max-height:300px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;padding:12px;background:#f7fafc;"></div>
+            <div style="margin-top:12px;font-size:14px;color:#667eea;font-weight:600;"><span id="protectionCount">0 staff protected</span></div>
+        </div>
+
+        <div id="preBalanceSection" style="margin-top:24px;padding-top:24px;border-top:1px solid #e2e8f0;">
+            <div class="card-title">📊 Pre-Balance Analysis</div>
+            <div style="display:flex;gap:12px;margin-bottom:16px;">
+                <button class="btn" onclick="runPreBalanceAnalysis()">🔍 Analyze Schedule</button>
+            </div>
+            <div id="preBalanceResults" class="hidden">
+                <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:8px;padding:16px;margin-bottom:16px;color:white;">
+                    <div style="font-weight:600;font-size:16px;margin-bottom:12px;">📋 CVICU Self-Scheduling Guidelines (6-Week Period)</div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;font-size:13px;">
+                        <div style="background:rgba(255,255,255,0.15);padding:12px;border-radius:6px;">
+                            <div style="font-weight:600;margin-bottom:6px;">Minimum Shifts</div>
+                            <div>FT: 18 shifts (3/week × 6)</div>
+                            <div>PT: 12 shifts (2/week × 6)</div>
+                            <div>PRN: 1-2 shifts minimum</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.15);padding:12px;border-radius:6px;">
+                            <div style="font-weight:600;margin-bottom:6px;">Weekend Requirements</div>
+                            <div>FT Day: 5 weekend shifts + 2 Sundays</div>
+                            <div>FT Night: 7 weekend shifts</div>
+                            <div>PT: 4 weekend shifts + 2 Sundays</div>
+                            <div>Mid: 3 or less weekend shifts</div>
+                            <div><strong>PRN: NONE</strong></div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.15);padding:12px;border-radius:6px;">
+                            <div style="font-weight:600;margin-bottom:6px;">Weekend Definition</div>
+                            <div><strong>Day shift:</strong> Sat &amp; Sun</div>
+                            <div><strong>Night shift:</strong> FRI, Sat &amp; Sun</div>
+                            <div><strong>Mid shift:</strong> Sat &amp; Sun (max 3)</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px;">
+                    <div style="font-weight:600;font-size:16px;margin-bottom:12px;">⚠️ Compliance Check</div>
+                    <div id="complianceCheckContent"></div>
+                </div>
+                <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px;">
+                    <div style="font-weight:600;font-size:16px;margin-bottom:12px;">📉 Coverage Gaps by Day</div>
+                    <div id="coverageGapsContent"></div>
+                </div>
+                <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;">
+                    <div style="font-weight:600;font-size:16px;margin-bottom:12px;">💡 Suggested Fixes Preview</div>
+                    <div id="suggestedFixesContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-title" style="margin-top:24px;padding-top:24px;border-top:1px solid #e2e8f0;">⚡ Step 4: Run Balancing Algorithm</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+            <button class="btn" onclick="runBalance('day')">☀️ Balance Day Shift</button>
+            <button class="btn" onclick="runBalance('night')">🌙 Balance Night Shift</button>
+            <button class="btn" onclick="runBalance('both')">🔄 Balance Both Shifts</button>
+        </div>
+        <div id="balanceProgress" class="hidden">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+            <div style="margin-top:8px;font-size:14px;color:#718096;" id="progressText">Initializing...</div>
+        </div>
+    </div>
+
+    <div class="card hidden" id="resultsSection">
+        <div class="card-title">📊 Results &amp; Download</div>
+        <div id="resultsContent"></div>
+        <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;">
+            <button class="btn btn-secondary" onclick="downloadExcel()">📥 Download Excel</button>
+            <button class="btn btn-secondary" onclick="downloadCSV()">📥 Download CSV</button>
+            <button class="btn btn-secondary" onclick="downloadMoveReport()">📋 Download Move Report</button>
+        </div>
+    </div>
+
+    <div class="card hidden" id="moveTrackerSection">
+        <div class="card-title">📋 Move Tracker - Who Got Assigned</div>
+        <div id="moveTrackerContent"></div>
+    </div>
+
+    <div class="card hidden" id="weekendRequirementsSection">
+        <div class="card-title">📅 Weekend Requirements Tracker</div>
+        <div style="margin-bottom:16px;font-size:14px;color:#718096;">Tracking weekend shift requirements per scheduling guidelines (6-week period)</div>
+        <div id="weekendRequirementsContent"></div>
+    </div>
+
+    <div class="card hidden" id="lateSubmittersSection">
+        <div class="card-title">🚨 Late Submitters - Needs Attention Before Sunday Deadline</div>
+        <div style="margin-bottom:16px;font-size:14px;color:#718096;">Staff who haven't submitted enough shifts yet</div>
+        <div id="lateSubmittersContent"></div>
+    </div>
+</div>
+
+<script>
+    const STAFF_ROSTER_LOOKUP = {
+        "Arredondo, Abigail": {"type":"PRN","skill":"","job":"RN"},
+        "Avalos, Jorge": {"type":"FT","skill":"ES/CN","job":"RN"},
+        "Barakat, Norah": {"type":"FT","skill":"","job":"RN"},
+        "Bency, Julie": {"type":"FT","skill":"ES","job":"RN"},
+        "Blake, Meghan M": {"type":"FT","skill":"ES","job":"RN"},
+        "Bogard, Brianna": {"type":"FT","skill":"EB","job":"RN"},
+        "Bruce, Jessica": {"type":"FT","skill":"","job":"RN"},
+        "Cailing, Manuel": {"type":"FT","skill":"ES","job":"RN"},
+        "Chairez, Odalys Y": {"type":"FT","skill":"EB/CN","job":"RN"},
+        "Cho, Jennifer": {"type":"FT","skill":"EB","job":"RN"},
+        "Claudio, Edelbert": {"type":"FT","skill":"EB","job":"RN"},
+        "Cruz, Rowena": {"type":"FT","skill":"CN","job":"RN"},
+        "Devadoss, Sachithanadam": {"type":"FT","skill":"ES/CN","job":"RN"},
+        "Doman, Antonilo D": {"type":"FT","skill":"","job":"PCT"},
+        "Dominguez, Monica": {"type":"PRN","skill":"","job":"PCT"},
+        "Douglas, Kyondra S": {"type":"PRN","skill":"","job":"RN"},
+        "Draper, Christopher M": {"type":"PRN","skill":"ES","job":"RN"},
+        "Gill, Kamran J": {"type":"FT","skill":"","job":"RN"},
+        "Guerrero, Gabriel D": {"type":"FT","skill":"EB","job":"RN"},
+        "Guzman Duran, Daysi": {"type":"FT","skill":"ES","job":"RN"},
+        "Hampton, Stephanie": {"type":"PRN","skill":"","job":"PCT"},
+        "Hansard, Gabrielle E": {"type":"FT","skill":"EB","job":"RN"},
+        "Harper, Bethany A": {"type":"FT","skill":"ES","job":"RN"},
+        "Heath, Logan": {"type":"FT","skill":"","job":"RN"},
+        "Hendrie, Melissa": {"type":"FT","skill":"EB","job":"RN"},
+        "Hernandez, Lilia E": {"type":"FT","skill":"EB","job":"RN"},
+        "Hickman, Erika": {"type":"PT","skill":"ES","job":"RN","shift":"MIDSHIFT"},
+        "Ho-Mowdy, Cathy": {"type":"FT","skill":"EB","job":"RN"},
+        "Jimenez, Feliberto": {"type":"PRN","skill":"","job":"RN"},
+        "Joseph, Tevin": {"type":"PT","skill":"","job":"HUC"},
+        "Joya Soto, Arturo": {"type":"PRN","skill":"","job":"RN"},
+        "Kaufmann, Taylor J": {"type":"PT","skill":"EB","job":"RN"},
+        "Kesbeh, Shroq": {"type":"FT","skill":"ES","job":"RN","shift":"MIDSHIFT"},
+        "Kessellie, Araminta L": {"type":"PRN","skill":"","job":"RN"},
+        "Langford, Robyn J": {"type":"FT","skill":"","job":"PCT"},
+        "Mahowald, Caroline R": {"type":"FT","skill":"EB/CN","job":"RN"},
+        "Makinde, Andrew": {"type":"PT","skill":"","job":"RN"},
+        "Martinez, Samantha": {"type":"FT","skill":"ES","job":"RN"},
+        "Mathew, Nisha J": {"type":"PT","skill":"EB","job":"RN"},
+        "Mathews, Anna": {"type":"PRN","skill":"","job":"PCT"},
+        "McKeown, Melanie V": {"type":"FT","skill":"EB","job":"RN"},
+        "McLean, Elyssa": {"type":"FT","skill":"EB/CN","job":"RN"},
+        "Nance, Victoria": {"type":"FT","skill":"EB","job":"RN"},
+        "Ortiz, Susana": {"type":"FT","skill":"","job":"PCT"},
+        "PRINCE DIAMONDRAJ, FRANCIS M": {"type":"FT","skill":"","job":"RN"},
+        "Paddyaker, Spencer": {"type":"FT","skill":"","job":"RN"},
+        "Patterson, Nathan": {"type":"FT","skill":"","job":"PCT"},
+        "Pfaff, Lillian": {"type":"FT","skill":"","job":"RN"},
+        "Rodriguez, Althea Nadine": {"type":"FT","skill":"CN","job":"RN"},
+        "Rodriguez, Mayra": {"type":"FT","skill":"","job":"PCT"},
+        "Rompel, Janna K": {"type":"FT","skill":"EB","job":"RN"},
+        "Saldivar Reyes, Esly": {"type":"FT","skill":"ES","job":"RN"},
+        "Sanchez, Catherine": {"type":"FT","skill":"ES","job":"RN"},
+        "Schultz, Ellie F": {"type":"FT","skill":"ES/CN","job":"RN"},
+        "Segura, Genova": {"type":"FT","skill":"","job":"RN"},
+        "Siebert, Reagan": {"type":"FT","skill":"","job":"RN"},
+        "Smith, Joshua B": {"type":"FT","skill":"EB","job":"RN"},
+        "Sotelo, Bryant": {"type":"FT","skill":"EB","job":"RN"},
+        "Stovall, Katherine": {"type":"FT","skill":"ES","job":"RN"},
+        "Thomas, Maya": {"type":"FT","skill":"EB","job":"RN"},
+        "Thrasher, Jarrett C": {"type":"FT","skill":"EB","job":"RN"},
+        "Tijerina, Sierra": {"type":"FT","skill":"EB/CN","job":"RN"},
+        "Timmons, Aleyah R": {"type":"FT","skill":"ES","job":"RN"},
+        "Trahan, Timayah": {"type":"FT","skill":"","job":"RN"},
+        "Tran, Hue H": {"type":"FT","skill":"ES","job":"RN"},
+        "Tran, Hung": {"type":"FT","skill":"","job":"RN"},
+        "Vasquez, Kathelyn R": {"type":"FT","skill":"","job":"PCT"},
+        "Warneke, Shanen": {"type":"FT","skill":"EB","job":"RN"},
+        "Wiggins, Kyler": {"type":"FT","skill":"EB","job":"RN"},
+        "Winter, Kassidy T": {"type":"FT","skill":"","job":"RN"},
+        "Zhang, Ruth C": {"type":"FT","skill":"ES","job":"RN"}
+    };
+
+    const ANM_STAFF = ['Cruz, Rowena','Rodriguez, Althea Nadine','Bruce, Jessica','Sala, Jose F','Wells, Sydney N'];
+    const EXCLUDED_STAFF = ['Boepple, Leslie C','Crawford, Kathy A','Houser, Stephanie A','Ninan, Aleyamma','Park, Vivian Y','Riddle, Crystal M','Rosben Varghese, Bincy','Stapleton-Greig, Joshua D'];
+
+    let rawData = null;
+    let staffRoster = [];
+    let balancedResults = null;
+    let protectedStaff = [];
+    let requirements = { RN_WD: 15, RN_WE: 14, PCT_WD: 2, PCT_WE: 1, CN: 3, EB: 2, ES: 2,
+                          CAP_WD: 3, CAP_THU: 4, CAP_SAT: 1, CAP_SUN: 2 }; // per-day RN offset caps
+
+    // CRITICAL: Dates in MyTime format are 'M/D/ YYYY' (single-digit months/days, space before year)
+    // JavaScript's .sort() sorts these ALPHABETICALLY which is WRONG:
+    // '5/2/ 2026' sorts AFTER '5/19/ 2026' because '2' > '1' alphabetically
+    // This corrupts week boundary calculations — nurses flagged as capped when they aren't
+    // Always use parseDate() and chronoSort() for date operations
+    function parseDate(dateStr) {
+        const p = dateStr.trim().split('/');
+        return new Date(parseInt(p[2]), parseInt(p[0]) - 1, parseInt(p[1]));
+    }
+    function chronoSort(a, b) { return parseDate(a) - parseDate(b); }
+
+    function isWeekendDate(dateStr) {
+        const dow = parseDate(dateStr).getDay();
+        return dow === 0 || dow === 6;
+    }
+    function getRnMin(dateStr)  { return isWeekendDate(dateStr) ? requirements.RN_WE  : requirements.RN_WD;  }
+    function getPctMin(dateStr) { return isWeekendDate(dateStr) ? requirements.PCT_WE : requirements.PCT_WD; }
+    function getRnMax(dateStr) {
+        const dow = parseDate(dateStr).getDay();
+        const HARD_CEILING = 4;
+        if (dow === 6) return getRnMin(dateStr) + Math.min(requirements.CAP_SAT, HARD_CEILING);
+        if (dow === 0) return getRnMin(dateStr) + Math.min(requirements.CAP_SUN, HARD_CEILING);
+        if (dow === 4) return getRnMin(dateStr) + Math.min(requirements.CAP_THU, HARD_CEILING);
+        return getRnMin(dateStr) + Math.min(requirements.CAP_WD, HARD_CEILING);
+    }
+    function updateCapDisplays() {
+        const wd  = document.getElementById('rnWdMaxDisplay');  if (wd)  wd.textContent  = requirements.RN_WD + requirements.CAP_WD;
+        const thu = document.getElementById('rnThuMaxDisplay'); if (thu) thu.textContent = requirements.RN_WD + requirements.CAP_THU;
+        const sat = document.getElementById('rnSatMaxDisplay'); if (sat) sat.textContent = requirements.RN_WE + requirements.CAP_SAT;
+        const sun = document.getElementById('rnSunMaxDisplay'); if (sun) sun.textContent = requirements.RN_WE + requirements.CAP_SUN;
+        // Also sync the +N displays
+        const wdv  = document.getElementById('rnWdCapVal');  if (wdv)  wdv.textContent  = requirements.CAP_WD;
+        const thuv = document.getElementById('rnThuCapVal'); if (thuv) thuv.textContent = requirements.CAP_THU;
+        const satv = document.getElementById('rnSatCapVal'); if (satv) satv.textContent = requirements.CAP_SAT;
+        const sunv = document.getElementById('rnSunCapVal'); if (sunv) sunv.textContent = requirements.CAP_SUN;
+    }
+
+    const MOVE_CAPS = {
+        late: 99,
+        nonCompliant: 6,
+        compliant: 2
+    };
+
+    let moveTracker = {};
+    let addedShiftsTracker = {};
+    let moveCategories = {};
+
+    document.addEventListener('DOMContentLoaded', () => {
+        setupEventListeners();
+        loadSavedRoster();
+        updateMasterDatabaseStatus();
+    });
+
+    function setupEventListeners() {
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('active'); });
+        uploadZone.addEventListener('dragleave', () => { uploadZone.classList.remove('active'); });
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault(); uploadZone.classList.remove('active');
+            const file = e.dataTransfer.files[0];
+            if (file) handleFileUpload(file);
+        });
+        fileInput.addEventListener('change', (e) => { if (e.target.files[0]) handleFileUpload(e.target.files[0]); });
+        // Weekday/weekend split sliders for RN min and PCT
+        [
+            ['rnWdSlider','rnWdValue','RN_WD'],
+            ['rnWeSlider','rnWeValue','RN_WE'],
+            ['pctWdSlider','pctWdValue','PCT_WD'],
+            ['pctWeSlider','pctWeValue','PCT_WE'],
+        ].forEach(([id, valId, key]) => {
+            const slider = document.getElementById(id);
+            const value  = document.getElementById(valId);
+            if (slider) slider.addEventListener('input', () => {
+                value.textContent = slider.value;
+                requirements[key] = parseInt(slider.value);
+                updateCapDisplays(); // recalculate max display when min changes
+            });
+        });
+        // Cap offset sliders — "+N → max M" updates directly by span ID (no firstChild fragility)
+        [
+            ['rnWdCapSlider',  'rnWdCapVal',  'CAP_WD',  'rnWdMaxDisplay',  'RN_WD'],
+            ['rnThuCapSlider', 'rnThuCapVal', 'CAP_THU', 'rnThuMaxDisplay', 'RN_WD'],
+            ['rnSatCapSlider', 'rnSatCapVal', 'CAP_SAT', 'rnSatMaxDisplay', 'RN_WE'],
+            ['rnSunCapSlider', 'rnSunCapVal', 'CAP_SUN', 'rnSunMaxDisplay', 'RN_WE'],
+        ].forEach(([sliderId, capValId, capKey, maxDisplayId, minKey]) => {
+            const slider = document.getElementById(sliderId);
+            if (!slider) return;
+            slider.addEventListener('input', () => {
+                requirements[capKey] = parseInt(slider.value);
+                document.getElementById(capValId).textContent   = slider.value;
+                document.getElementById(maxDisplayId).textContent = requirements[minKey] + requirements[capKey];
+            });
+        });
+        // Simple sliders (CN, EB, ES)
+        ['chg','eb','es'].forEach(type => {
+            const slider = document.getElementById(`${type}Slider`);
+            const value  = document.getElementById(`${type}Value`);
+            if (slider) slider.addEventListener('input', () => {
+                value.textContent = slider.value;
+                requirements[type === 'chg' ? 'CN' : type.toUpperCase()] = parseInt(slider.value);
+            });
+        });
+    }
+
+    function handleFileUpload(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                parseMyTimeExport(workbook);
+                document.getElementById('fileInfo').classList.remove('hidden');
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('requirementsSection').classList.remove('hidden');
+                document.getElementById('rosterSection').classList.remove('hidden');
+                document.getElementById('balanceSection').classList.remove('hidden');
+            } catch (error) { alert('Error reading file: ' + error.message); }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    function parseMyTimeExport(workbook) {
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+        let dateRow = data[7] || [];
+        const dates = [];
+
+        dateRow.forEach((cell, idx) => {
+            const cellStr = String(cell);
+            if (cell && cellStr.includes('/') && cellStr.match(/\d+\/\d+/)) {
+                const dateStr = cellStr.replace(/Sun|Mon|Tue|Wed|Thu|Fri|Sat/gi, '').replace(/\n/g, ' ').trim();
+                dates.push({ col: idx, date: dateStr });
+            }
+        });
+
+        if (dates.length === 0) {
+            dateRow = data[6] || [];
+            dateRow.forEach((cell, idx) => {
+                const cellStr = String(cell);
+                if (cell && cellStr.includes('/') && cellStr.match(/\d+\/\d+/)) {
+                    const dateStr = cellStr.replace(/Sun|Mon|Tue|Wed|Thu|Fri|Sat/gi, '').replace(/\n/g, ' ').trim();
+                    dates.push({ col: idx, date: dateStr });
+                }
+            });
+        }
+
+        staffRoster = [];
+        for (let i = 8; i < data.length; i++) {
+            const row = data[i];
+            const name = row[0];
+            const job = row[5]; // keep for job field parsing below
+            // Skip non-staff rows: must have a name that looks like a person (contains comma = "Last, First")
+            // Skip header rows, location banners, blank rows
+            if (!name || typeof name !== 'string') continue;
+            if (!name.includes(',')) continue; // person names always have "Last, First"
+            if (name.includes('Employee') || name.includes('866') || name.includes('──')) continue;
+
+            const shifts = {};
+            const translateMyTimeCode = (value) => {
+                if (!value || value === '') return '';
+                const upper = String(value).toUpperCase().trim();
+                if (upper === '7A' || upper === '7P' || upper === 'MID') return upper;
+                if (upper.includes('6T19') || upper === '6T19Q' || upper === '6119') return '7A';
+                if (upper.includes('18T7') || upper === '18T7Q' || upper === '1817') return '7P';
+                if (upper.includes('10W2') || upper === '10W2Q') return 'MID';
+                // FIX v28: PAYRO is a PAYROLL ADJUSTMENT CODE, NOT a PTO request.
+                // It will block scheduling (handled in canAdd) but shows as PAYRO in output.
+                if (upper === 'PAYRO' || upper.startsWith('PAYRO')) return 'PAYRO';
+                // Per code reference: VAC/VACATION = PTO (counts toward shift requirement)
+                // SICK = SICK (counts toward NOTHING — sick time ≠ approved leave)
+                if (upper.includes('VAC')) return 'PTO';
+                if (upper.includes('SICK')) return 'SICK'; // Separate from PTO — does NOT count toward requirements
+                if (upper.includes('R/O') || upper === 'RO') return 'R/O';
+                if (upper === 'PTO' || upper === 'HOL' || upper === 'FMLA' || upper === 'LOA' || upper === 'ORI' || upper === 'ADMIN' || upper === 'EDU' || upper === 'FLOAT' || upper === 'CALL' || upper === 'PRECEPT') return upper;
+                // FIX v28: Narrow time windows — only translate CLEAR shift start times.
+                // Old code: hour < 6 → '7P' caught ANM admin times like '4:00 AM' → '7P' (WRONG)
+                // Old code: hour 10-18 → 'MID' caught '1:00 PM' admin times (WRONG for AMGRs)
+                // New: only translate times within tight clinical shift start windows.
+                const timeMatch = value.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+                if (timeMatch) {
+                    let hour = parseInt(timeMatch[1]);
+                    const ampm = timeMatch[3].toUpperCase();
+                    if (ampm === 'PM' && hour !== 12) hour += 12;
+                    if (ampm === 'AM' && hour === 12) hour = 0;
+                    if (hour >= 6 && hour <= 9) return '7A';    // Day shift start (6–9 AM)
+                    if (hour >= 10 && hour <= 12) return 'MID'; // Mid shift start (10 AM–noon)
+                    if (hour >= 18 && hour <= 22) return '7P';  // Night shift start (6–10 PM)
+                    // FIX v28b: Early AM (1–5 AM) = ANM admin/office shift
+                    // e.g. Rowena Cruz comes in 4am–12pm for office work
+                    // Counts toward shift requirement but NOT toward daily coverage balance
+                    if (hour >= 1 && hour <= 5) return 'ADMIN';
+                    return ''; // Other ambiguous times → ignored
+                }
+                return value;
+            };
+
+            // CRITICAL FIX v28: Bounded offset search
+            // OLD BUG: searching offsets +1,+2,+3 caused blank days to steal the NEXT date's shift.
+            // Example: Cruz off on 4/19 (blank at col 8) → old code grabbed 4/20's shift at col 10.
+            // Example: Cruz off on 5/02 (blank at col 38) → old code grabbed 5/03's PAYRO at col 40.
+            // FIX: Only search within the current date's column block (up to but not including the next date's column).
+            dates.forEach((d, dateIdx) => {
+                const nextDateCol = dateIdx + 1 < dates.length ? dates[dateIdx + 1].col : d.col + 3;
+                const maxOffset = nextDateCol - d.col; // Stay within this date's columns only
+                let shift = '';
+                for (let offset = 1; offset < maxOffset; offset++) {
+                    const candidate = row[d.col + offset];
+                    if (candidate && String(candidate).trim() !== '') {
+                        shift = translateMyTimeCode(candidate);
+                        break;
+                    }
+                }
+                if (shift) shifts[d.date] = shift;
+            });
+
+            const parseJobField = (jobStr) => {
+                if (!jobStr) return { role: '', shift: '', empType: 'FT', skills: '' };
+                const jobUpper = jobStr.toUpperCase();
+                let role = jobStr.split('-')[0].trim();
+                let shift = '';
+                let empType = 'FT';
+                let skills = '';
+                if (jobUpper.includes('(AM)')) shift = 'AM';
+                else if (jobUpper.includes('(PM)')) shift = 'PM';
+                else if (jobUpper.includes('(MIDSHIFT)')) shift = 'MIDSHIFT';
+                if (jobUpper.includes('-PRN')) empType = 'PRN';
+                else if (jobUpper.includes('-PT')) empType = 'PT';
+                else if (jobUpper.includes('-FT')) empType = 'FT';
+                const parts = jobStr.split(',');
+                if (parts.length > 1) skills = parts.slice(1).join(',').trim();
+                return { role, shift, empType, skills };
+            };
+
+            const parsed = parseJobField(job);
+            const masterDatabase = loadMasterDatabase();
+            const masterData = masterDatabase[name];
+            const saved = getSavedStaff(name);
+            const embedded = STAFF_ROSTER_LOOKUP[name];
+            const excelType = row[2];
+            const excelSkill = row[3];
+
+            const staffRole = masterData?.job || saved?.job || parsed.role || embedded?.job || job;
+            const staffType = masterData?.type || saved?.type || parsed.empType || excelType || embedded?.type || 'FT';
+            const staffSkill = masterData?.skills || saved?.skill || parsed.skills || excelSkill || embedded?.skill || '';
+            const staffShift = masterData?.shift || saved?.shift || parsed.shift || '';
+
+            staffRoster.push({
+                name, job: staffRole === 'AMGR' ? 'RN' : staffRole,
+                type: staffType, skill: staffSkill, shift: staffShift, shifts
+            });
+        }
+
+        const appliedCount = applyMasterDataToStaff();
+        if (appliedCount > 0) console.log(`✅ Auto-loaded master database for ${appliedCount} staff`);
+
+        document.getElementById('payPeriod').textContent = dates[0]?.date + ' to ' + dates[dates.length-1]?.date;
+        document.getElementById('staffCount').textContent = staffRoster.length;
+        renderStaffTable();
+        rawData = { dates, staffRoster };
+        populateProtectionList();
+    }
+
+    function renderStaffTable() {
+        const tbody = document.getElementById('staffTableBody');
+        tbody.innerHTML = '';
+        staffRoster.forEach((staff, idx) => {
+            const tr = document.createElement('tr');
+            const isANM = ANM_STAFF.includes(staff.name);
+            if (isANM) { tr.style.backgroundColor = '#fff9e6'; tr.style.borderLeft = '4px solid #f59e0b'; }
+            const nameDisplay = isANM ? `${staff.name} 🔒 ANM` : staff.name;
+            tr.innerHTML = `
+                <td style="font-weight:${isANM?'bold':'normal'}">${nameDisplay}</td>
+                <td>${staff.job}</td>
+                <td><select onchange="updateStaff(${idx},'type',this.value)" ${isANM?'disabled':''}>
+                    <option value="FT" ${staff.type==='FT'?'selected':''}>FT</option>
+                    <option value="PT" ${staff.type==='PT'?'selected':''}>PT</option>
+                    <option value="PRN" ${staff.type==='PRN'?'selected':''}>PRN</option>
+                </select></td>
+                <td><select onchange="updateStaff(${idx},'shift',this.value)" ${isANM?'disabled':''}>
+                    <option value="AM" ${staff.shift==='AM'?'selected':''}>Day (AM)</option>
+                    <option value="PM" ${staff.shift==='PM'?'selected':''}>Night (PM)</option>
+                    <option value="MIDSHIFT" ${staff.shift==='MIDSHIFT'?'selected':''}>Mid</option>
+                    <option value="" ${!staff.shift?'selected':''}>(unassigned)</option>
+                </select></td>
+                <td><input type="text" value="${staff.skill}" placeholder="EB, ES, CN..."
+                    onchange="updateStaff(${idx},'skill',this.value)" ${isANM?'disabled':''}></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function updateStaff(idx, field, value) { staffRoster[idx][field] = value; saveRoster(); }
+    function saveRoster() {
+        const rosterData = staffRoster.map(s => ({ name: s.name, type: s.type, skill: s.skill, shift: s.shift }));
+        localStorage.setItem('cvicu_roster', JSON.stringify(rosterData));
+    }
+    function loadSavedRoster() { const saved = localStorage.getItem('cvicu_roster'); return saved ? JSON.parse(saved) : []; }
+
+    function populateProtectionList() {
+        const listDiv = document.getElementById('protectionList');
+        const controlsDiv = document.getElementById('protectionControls');
+        if (!staffRoster || staffRoster.length === 0) { listDiv.innerHTML = '<div style="color:#718096;">No staff loaded yet</div>'; return; }
+        controlsDiv.classList.remove('hidden');
+        let html = '';
+        staffRoster.sort((a,b) => a.name.localeCompare(b.name)).forEach((staff, idx) => {
+            const isANM = ANM_STAFF.includes(staff.name);
+            const disabled = isANM ? 'disabled' : '';
+            const anmLabel = isANM ? ' (ANM - Always Protected)' : '';
+            const submittedDays = Object.keys(staff.shifts||{}).filter(date => {
+                const value = staff.shifts[date]; return value && String(value).trim() !== '';
+            }).length;
+            html += `<div style="padding:8px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;${isANM?'background:#fff9e6;':''}">
+                <input type="checkbox" id="protect_${idx}" value="${staff.name}" ${disabled} ${isANM?'checked':''} onchange="updateProtectionList()" style="margin-right:8px;">
+                <label for="protect_${idx}" style="flex:1;cursor:${isANM?'not-allowed':'pointer'};user-select:none;">
+                    <strong>${staff.name}</strong>${anmLabel}
+                    <span style="color:#718096;font-size:13px;margin-left:8px;">${staff.job} • ${submittedDays} days submitted</span>
+                </label></div>`;
+        });
+        listDiv.innerHTML = html;
+        updateProtectionList();
+    }
+
+    function selectAllProtection() { document.querySelectorAll('#protectionList input[type="checkbox"]:not(:disabled)').forEach(cb => cb.checked = true); updateProtectionList(); }
+    function deselectAllProtection() { document.querySelectorAll('#protectionList input[type="checkbox"]:not(:disabled)').forEach(cb => cb.checked = false); updateProtectionList(); }
+    function updateProtectionList() {
+        const checkboxes = document.querySelectorAll('#protectionList input[type="checkbox"]:checked');
+        protectedStaff = Array.from(checkboxes).map(cb => cb.value);
+        const count = protectedStaff.length;
+        const countSpan = document.getElementById('protectionCount');
+        countSpan.textContent = `${count} staff protected`;
+        countSpan.style.color = count > 0 ? '#667eea' : '#718096';
+    }
+
+    function getSavedStaff(name) {
+        if (STAFF_ROSTER_LOOKUP[name]) return STAFF_ROSTER_LOOKUP[name];
+        const roster = loadSavedRoster();
+        return roster.find(s => s.name === name);
+    }
+
+    function loadMasterDatabase() {
+        const saved = localStorage.getItem('cvicu_master_staff');
+        if (saved) { try { return JSON.parse(saved); } catch(e) { return {}; } }
+        return {};
+    }
+    function saveMasterDatabase(database) { localStorage.setItem('cvicu_master_staff', JSON.stringify(database)); updateMasterDatabaseStatus(); }
+    function updateMasterDatabaseStatus() {
+        const database = loadMasterDatabase();
+        const count = Object.keys(database).length;
+        const statusDiv = document.getElementById('masterDatabaseStatus');
+        if (count > 0) { statusDiv.innerHTML = `✅ <strong>${count} staff</strong> in master database`; statusDiv.style.color = '#38a169'; }
+        else { statusDiv.innerHTML = '⚠️ No master database loaded.'; statusDiv.style.color = '#d69e2e'; }
+    }
+    function saveCurrentAsMaster() {
+        if (!staffRoster || staffRoster.length === 0) { alert('⚠️ No staff loaded.'); return; }
+        const database = {};
+        staffRoster.forEach(staff => { database[staff.name] = { job: staff.job, type: staff.type, shift: staff.shift||'', skills: staff.skill||'' }; });
+        saveMasterDatabase(database);
+        alert(`✅ Saved ${Object.keys(database).length} staff to master database!`);
+    }
+    function handleMasterCSVUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const text = e.target.result;
+                const lines = text.split('\n').filter(line => line.trim());
+                const parseCSVLine = (line) => {
+                    const result = []; let current = ''; let inQuotes = false;
+                    for (let i = 0; i < line.length; i++) {
+                        const char = line[i];
+                        if (char === '"') { inQuotes = !inQuotes; }
+                        else if (char === ',' && !inQuotes) { result.push(current.trim()); current = ''; }
+                        else { current += char; }
+                    }
+                    result.push(current.trim()); return result;
+                };
+                const database = {};
+                for (let i = 1; i < lines.length; i++) {
+                    const parts = parseCSVLine(lines[i]);
+                    if (parts.length >= 4) {
+                        const name = parts[0]; const job = parts[1]; const type = parts[2]; const shift = parts[3]||''; const skills = parts[4]||'';
+                        if (name) database[name] = { job, type, shift, skills };
+                    }
+                }
+                saveMasterDatabase(database);
+                alert(`✅ Loaded ${Object.keys(database).length} staff from master CSV`);
+                if (staffRoster.length > 0) { applyMasterDataToStaff(); renderStaffTable(); }
+            } catch (error) { alert('Error reading CSV: ' + error.message); }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+    }
+    function downloadMasterCSV() {
+        const database = loadMasterDatabase();
+        if (Object.keys(database).length === 0) { alert('⚠️ No staff in master database'); return; }
+        let csv = 'Name,Job,Type,Shift,Skills\n';
+        Object.entries(database).forEach(([name, data]) => { csv += `${name},${data.job},${data.type},${data.shift||''},${data.skills}\n`; });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = 'CVICU_Master_Staff_Database.csv'; a.click();
+        URL.revokeObjectURL(url);
+    }
+    function showAddEmployeeForm() { document.getElementById('addEmployeeForm').classList.remove('hidden'); }
+    function hideAddEmployeeForm() {
+        document.getElementById('addEmployeeForm').classList.add('hidden');
+        document.getElementById('newEmployeeName').value = '';
+        document.getElementById('newEmployeeSkills').value = '';
+    }
+    function addNewEmployee() {
+        const name = document.getElementById('newEmployeeName').value.trim();
+        const job = document.getElementById('newEmployeeJob').value;
+        const type = document.getElementById('newEmployeeType').value;
+        const shift = document.getElementById('newEmployeeShift').value;
+        const skills = document.getElementById('newEmployeeSkills').value.trim();
+        if (!name) { alert('⚠️ Please enter employee name'); return; }
+        const database = loadMasterDatabase();
+        database[name] = { job, type, shift, skills };
+        saveMasterDatabase(database);
+        if (staffRoster.length > 0) {
+            const exists = staffRoster.find(s => s.name === name);
+            if (!exists) { staffRoster.push({ name, job, type, shift, skill: skills, shifts: {} }); renderStaffTable(); document.getElementById('staffCount').textContent = staffRoster.length; }
+        }
+        alert(`✅ Added ${name} to master database`);
+        hideAddEmployeeForm();
+    }
+    function clearMasterDatabase() {
+        if (!confirm('⚠️ Clear the entire master database? This cannot be undone.')) return;
+        localStorage.removeItem('cvicu_master_staff');
+        updateMasterDatabaseStatus();
+        alert('✅ Master database cleared');
+    }
+    function applyMasterDataToStaff() {
+        const database = loadMasterDatabase();
+        let appliedCount = 0;
+        staffRoster.forEach(staff => {
+            if (database[staff.name]) {
+                const masterData = database[staff.name];
+                staff.job = masterData.job; staff.type = masterData.type;
+                staff.shift = masterData.shift || staff.shift; staff.skill = masterData.skills;
+                appliedCount++;
+            }
+        });
+        return appliedCount;
+    }
+
+    // Pre-Balance Analysis
+    function runPreBalanceAnalysis() {
+        if (!rawData || !rawData.dates || !staffRoster || staffRoster.length === 0) { alert('⚠️ Please import MyTime data first'); return; }
+        document.getElementById('preBalanceSection').classList.remove('hidden');
+        document.getElementById('preBalanceResults').classList.remove('hidden');
+        analyzeCompliance();
+        analyzeCoverageGaps();
+        generateSuggestedFixes();
+    }
+
+    function analyzeCompliance() {
+        const content = document.getElementById('complianceCheckContent');
+        const dates = rawData.dates.map(d => d.date);
+
+        const REQUIREMENTS = {
+            FT: 18, PT: 12, PRN: 1,
+            WEEKEND: { FT_DAY: 5, FT_NIGHT: 7, PT: 4, MID: 3, PRN: 0 },
+            SUNDAY: { FT_DAY: 2, PT: 2 }
+        };
+
+        const issues = [];
+        staffRoster.forEach(staff => {
+            const staffIssues = [];
+            const submittedDays = Object.keys(staff.shifts||{}).filter(date => {
+                const value = staff.shifts[date]; return value && String(value).trim() !== '';
+            }).length;
+
+            const staffType = staff.type || 'FT';
+            if (staffType === 'PRN' || ANM_STAFF.includes(staff.name)) return;
+
+            const minShifts = REQUIREMENTS[staffType] || REQUIREMENTS.FT;
+            if (submittedDays < minShifts) {
+                staffIssues.push({ type: 'Total Shifts', required: minShifts, actual: submittedDays, gap: minShifts - submittedDays, action: `Add ${minShifts - submittedDays} shift(s)` });
+            }
+
+            const weekendShifts = countWeekendShifts(staff, dates);
+            const staffShift = staff.shift || '';
+
+            // =====================================================
+            // FIX 3: MID weekend is a MAX (≤3), not a minimum
+            // =====================================================
+            if (staffShift === 'MIDSHIFT') {
+                if (weekendShifts > 3) {
+                    staffIssues.push({
+                        type: 'Weekend Shifts (MID - over max)',
+                        required: '≤3',
+                        actual: weekendShifts,
+                        gap: weekendShifts - 3,
+                        action: `Remove ${weekendShifts - 3} weekend shift(s)`
+                    });
+                }
+                // MID uses a cap not a floor — skip generic minimum check below
+            } else {
+                let weekendRequired = 0;
+                if (staffType === 'FT') {
+                    if (staffShift === 'AM') weekendRequired = REQUIREMENTS.WEEKEND.FT_DAY;
+                    else if (staffShift === 'PM') weekendRequired = REQUIREMENTS.WEEKEND.FT_NIGHT;
+                } else if (staffType === 'PT') {
+                    weekendRequired = REQUIREMENTS.WEEKEND.PT;
+                }
+                if (weekendRequired > 0 && weekendShifts < weekendRequired) {
+                    staffIssues.push({ type: 'Weekend Shifts', required: weekendRequired, actual: weekendShifts, gap: weekendRequired - weekendShifts, action: `Add ${weekendRequired - weekendShifts} weekend shift(s)` });
+                }
+            }
+
+            if (staffShift === 'AM' && (staffType === 'FT' || staffType === 'PT')) {
+                const sundayShifts = countSundayShifts(staff, dates);
+                const sundayRequired = REQUIREMENTS.SUNDAY[staffType === 'FT' ? 'FT_DAY' : 'PT'];
+                if (sundayShifts < sundayRequired) {
+                    staffIssues.push({ type: 'Sunday Shifts', required: sundayRequired, actual: sundayShifts, gap: sundayRequired - sundayShifts, action: `Add ${sundayRequired - sundayShifts} Sunday shift(s)` });
+                }
+            }
+
+            if (staffIssues.length > 0) {
+                issues.push({ name: staff.name, job: staff.job, type: staffType, shift: staff.shift||'?', issues: staffIssues });
+            }
+        });
+
+        let html = '';
+        if (issues.length === 0) {
+            html = '<div class="alert alert-success">✅ All staff are compliant!</div>';
+        } else {
+            html += `<div class="alert alert-warning"><strong>${issues.length} staff need attention</strong></div>`;
+            html += '<table class="staff-table" style="margin-top:12px;"><thead><tr><th>Name</th><th>Job</th><th>Type</th><th>Shift</th><th>Requirement</th><th>Required</th><th>Actual</th><th>Gap</th><th>Action</th></tr></thead><tbody>';
+            issues.forEach(item => {
+                item.issues.forEach((issue, idx) => {
+                    html += '<tr>';
+                    if (idx === 0) {
+                        html += `<td rowspan="${item.issues.length}">${item.name}</td>`;
+                        html += `<td rowspan="${item.issues.length}">${item.job}</td>`;
+                        html += `<td rowspan="${item.issues.length}">${item.type}</td>`;
+                        html += `<td rowspan="${item.issues.length}">${item.shift}</td>`;
+                    }
+                    html += `<td>${issue.type}</td><td>${issue.required}</td><td>${issue.actual}</td>`;
+                    html += `<td style="color:#e53e3e;"><strong>${issue.gap}</strong></td><td>${issue.action}</td></tr>`;
+                });
+            });
+            html += '</tbody></table>';
+        }
+        content.innerHTML = html;
+    }
+
+    function countWeekendShifts(staff, dates) {
+        let count = 0;
+        const staffShift = staff.shift || '';
+        dates.forEach(dateStr => {
+            const date = parseDate(dateStr);
+            const dayOfWeek = date.getDay();
+            const shiftValue = staff.shifts[dateStr];
+            let isWeekend = false;
+            if (staffShift === 'PM') { isWeekend = (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0); }
+            else { isWeekend = (dayOfWeek === 6 || dayOfWeek === 0); }
+            if (isWeekend && shiftValue && String(shiftValue).trim() !== '') count++;
+        });
+        return count;
+    }
+
+    function countSundayShifts(staff, dates) {
+        let count = 0;
+        dates.forEach(dateStr => {
+            const date = parseDate(dateStr);
+            const shiftValue = staff.shifts[dateStr];
+            if (date.getDay() === 0 && shiftValue && String(shiftValue).trim() !== '') count++;
+        });
+        return count;
+    }
+
+    function analyzeCoverageGaps() {
+        const content = document.getElementById('coverageGapsContent');
+        const dates = rawData.dates.map(d => d.date);
+        const COUNTING_DAY = ['7A','MID'];
+        const gapsByDate = [];
+        dates.forEach(date => {
+            let rnCount=0, pctCount=0, chgCount=0, ebCount=0, esCount=0;
+            staffRoster.forEach(staff => {
+                const shift = staff.shifts[date];
+                if (COUNTING_DAY.includes(shift)) {
+                    if (staff.job?.includes('RN')) { rnCount++; if (staff.skill?.includes('CN')) chgCount++; if (staff.skill?.includes('EB')) ebCount++; if (staff.skill?.includes('ES')) esCount++; }
+                    if (staff.job?.includes('PCT')) pctCount++;
+                }
+            });
+            const rnMin  = getRnMin(date);
+            const pctMin = getPctMin(date);
+            const rnGap=rnMin-rnCount, pctGap=pctMin-pctCount, chgGap=requirements.CN-chgCount, ebGap=requirements.EB-ebCount, esGap=requirements.ES-esCount;
+            const hasGaps = rnGap>0||pctGap>0||chgGap>0||ebGap>0||esGap>0;
+            if (hasGaps) gapsByDate.push({ date, rnGap:Math.max(0,rnGap), pctGap:Math.max(0,pctGap), chgGap:Math.max(0,chgGap), ebGap:Math.max(0,ebGap), esGap:Math.max(0,esGap), totalGaps:Math.max(0,rnGap)+Math.max(0,pctGap)+Math.max(0,chgGap)+Math.max(0,ebGap)+Math.max(0,esGap) });
+        });
+        let html = '';
+        if (gapsByDate.length === 0) { html = '<div class="alert alert-success">✅ All days meet coverage requirements!</div>'; }
+        else {
+            html += `<div class="alert alert-warning"><strong>${gapsByDate.length} days have coverage gaps</strong></div>`;
+            html += '<div style="max-height:400px;overflow-y:auto;"><table class="staff-table" style="margin-top:12px;"><thead><tr><th>Date</th><th>Type</th><th>RN Gap</th><th>PCT Gap</th><th>CN Gap</th><th>EB Gap</th><th>ES Gap</th><th>Total</th></tr></thead><tbody>';
+            gapsByDate.forEach(day => {
+                const wk = isWeekendDate(day.date) ? '📅 WE' : '☀️ WD';
+                html += '<tr>';
+                html += `<td>${day.date}</td><td>${wk}</td>`;
+                html += `<td style="color:${day.rnGap>0?'#e53e3e':'#38a169'};">${day.rnGap>0?'-'+day.rnGap:'✓'}</td>`;
+                html += `<td style="color:${day.pctGap>0?'#e53e3e':'#38a169'};">${day.pctGap>0?'-'+day.pctGap:'✓'}</td>`;
+                html += `<td style="color:${day.chgGap>0?'#e53e3e':'#38a169'};">${day.chgGap>0?'-'+day.chgGap:'✓'}</td>`;
+                html += `<td style="color:${day.ebGap>0?'#e53e3e':'#38a169'};">${day.ebGap>0?'-'+day.ebGap:'✓'}</td>`;
+                html += `<td style="color:${day.esGap>0?'#e53e3e':'#38a169'};">${day.esGap>0?'-'+day.esGap:'✓'}</td>`;
+                html += `<td style="color:#e53e3e;font-weight:600;">${day.totalGaps}</td></tr>`;
+            });
+            html += '</tbody></table></div>';
+        }
+        content.innerHTML = html;
+    }
+
+    function generateSuggestedFixes() {
+        document.getElementById('suggestedFixesContent').innerHTML = `<div class="alert alert-warning">💡 Run the balancer below to see all moves.</div>`;
+    }
+
+    function runBalance(mode) {
+        moveTracker = {}; moveCategories = {}; addedShiftsTracker = {}; // reset ALL trackers
+        document.getElementById('balanceProgress').classList.remove('hidden');
+        document.getElementById('resultsSection').classList.add('hidden');
+        updateProgress(10, 'Analyzing schedule...');
+        setTimeout(() => {
+            try {
+                if (mode === 'day' || mode === 'both') {
+                    balancedResults = { day: balanceDayShift() };
+                    updateProgress(50, 'Day shift balanced...');
+                }
+                if (mode === 'night' || mode === 'both') {
+                    balancedResults = { ...balancedResults, night: balanceNightShift() };
+                    updateProgress(80, 'Night shift balanced...');
+                }
+
+                // =====================================================
+                // FIX 1: detectLateSubmitter now uses threshold=18 for FT
+                // =====================================================
+                const lateSubmitters = staffRoster.filter(s => detectLateSubmitter(s)).map(s => {
+                    const staffType = s.type || 'FT';
+                    const submittedDays = Object.keys(s.shifts||{}).filter(date => {
+                        const value = s.shifts[date]; return value && String(value).trim() !== '';
+                    }).length;
+                    // Display the actual requirement (18 for FT, 12 for PT)
+                    const actualRequired = staffType === 'FT' ? 18 : 12;
+                    return { name: s.name, job: s.job, staffType, submitted: submittedDays, threshold: actualRequired };
+                });
+                balancedResults.lateSubmitters = lateSubmitters;
+
+                updateProgress(100, 'Complete!');
+                setTimeout(() => {
+                    displayResults();
+                    document.getElementById('balanceProgress').classList.add('hidden');
+                    document.getElementById('resultsSection').classList.remove('hidden');
+                }, 500);
+            } catch (error) {
+                alert('Balancing error: ' + error.message);
+                document.getElementById('balanceProgress').classList.add('hidden');
+            }
+        }, 100);
+    }
+
+    function balanceDayShift() {
+        // Day counting includes 7A and MID (MIDSHIFT staff contribute to day coverage)
+        const COUNTING_DAY = ['7A', 'MID'];
+        const simulation = {};
+        const moveList = [];
+        const dates = Object.keys(rawData.dates.reduce((acc,d) => { acc[d.date]=true; return acc; }, {})).sort(chronoSort); // FIXED: chronological not alphabetical
+
+        staffRoster.forEach(s => {
+            // EXCLUDED_STAFF: in roster (122 count) but shifts blanked in simulation
+            // Their self-scheduled shifts must NOT inflate coverage counts
+            const translated = EXCLUDED_STAFF.includes(s.name) ? {} : translateShifts(s.shifts, 'day');
+            simulation[s.name] = { ...s };
+            dates.forEach(date => { simulation[s.name][date] = translated[date] || ''; });
+        });
+
+        let moves = 0;
+        // Weekends first (gaps are harder to fill there)
+        const sortedDates = [...dates].sort((a, b) => {
+            const dayA = parseDate(a).getDay(); const dayB = parseDate(b).getDay();
+            const wA = (dayA===0||dayA===6); const wB = (dayB===0||dayB===6);
+            if (wA && !wB) return -1; if (!wA && wB) return 1;
+            return parseDate(a) - parseDate(b);
+        });
+
+        // Helper: assign correct shift code for the staff member's shift type
+        const assignCode = (staff) => staff.shift === 'MIDSHIFT' ? 'MID' : '7A';
+
+        sortedDates.forEach(date => {
+            const gaps = getGaps(date, simulation, COUNTING_DAY);
+            const rnMax = getRnMax(date);
+
+            // Live RN counter — tracks total RNs assigned on this date as we go.
+            // CN/EB/ES candidates are all RNs, so they ALL count toward the daily cap.
+            // This prevents +5 situations where filling 4 different sub-types all add RNs.
+            let liveRN = Object.values(simulation).filter(st => {
+                const sh = st[date]; return (sh === '7A' || sh === 'MID') && st.job === 'RN';
+            }).length;
+
+            // Priority order: PCT first (hardest to fill), then CN, then EB/ES, then RN
+            const fillOrder = ['PCT', 'CN', 'EB', 'ES', 'RN'];
+            fillOrder.forEach(type => {
+                const needed = gaps[type];
+                if (!needed || needed <= 0) return;
+
+                const candidates = staffRoster
+                    .filter(s => canAdd(s, date, simulation, COUNTING_DAY, 'day'))
+                    .filter(s => s.type !== 'PRN')
+                    .filter(s => {
+                        if (type==='CN')  return s.skill?.includes('CN');
+                        if (type==='EB')  return s.skill?.includes('EB');
+                        if (type==='ES')  return s.skill?.includes('ES');
+                        if (type==='PCT') return s.job==='PCT';
+                        return s.job==='RN';
+                    })
+                    .map(s => ({ ...s, priority: getPriorityCategory(s, simulation, null) }))
+                    .sort((a,b) => {
+                        if (a.priority.tier !== b.priority.tier) return a.priority.tier - b.priority.tier;
+                        if (a.type==='FT' && b.type!=='FT') return -1;
+                        if (a.type!=='FT' && b.type==='FT') return 1;
+                        return countShifts(a.name,simulation,COUNTING_DAY) - countShifts(b.name,simulation,COUNTING_DAY);
+                    });
+
+                let filled = 0;
+                candidates.forEach(c => {
+                    if (filled >= needed) return;
+                    // Hard RN cap: if staff is an RN (any sub-type) and we're at max, stop
+                    if (c.job === 'RN' && liveRN >= rnMax) return;
+                    const originalValue = simulation[c.name][date];
+                    const wasBlank = !originalValue || String(originalValue).trim() === '';
+                    if (!wasBlank && !canAddMove(c.name, c.priority.category)) return;
+                    const code = assignCode(c);
+                    simulation[c.name][date] = code;
+                    trackMove(c.name, c.priority.category, date, code, originalValue);
+                    moveList.push({ name:c.name, date, shift:code, reason:`Fill ${type} gap`, type:c.type, job:c.job, skill:c.skill });
+                    if (c.job === 'RN') liveRN++; // update live counter immediately
+                    filled++; moves++;
+                });
+            });
+
+            // Ensure at least 1 MID shift on weekends (Sat/Sun) — but respect RN cap
+            if (isWeekendDate(date)) {
+                const hasMid = Object.values(simulation).some(st => st[date] === 'MID');
+                if (!hasMid) {
+                    const rnMaxNow = getRnMax(date);
+                    // Recount live RN after gap filling above
+                    const currentRNCount = Object.values(simulation).filter(st => {
+                        const sh = st[date]; return (sh === '7A' || sh === 'MID') && st.job === 'RN';
+                    }).length;
+                    if (currentRNCount < rnMaxNow) { // only add MID if under cap
+                        const midCandidates = staffRoster
+                            .filter(s => s.shift === 'MIDSHIFT' && s.type !== 'PRN' && !ANM_STAFF.includes(s.name) && !protectedStaff.includes(s.name))
+                            .filter(s => {
+                                const cur = simulation[s.name][date];
+                                return (!cur || cur.trim() === '') && canAdd(s, date, simulation, COUNTING_DAY, 'day');
+                            })
+                            .map(s => ({ ...s, priority: getPriorityCategory(s, simulation, null) }))
+                            .sort((a,b) => countShifts(a.name,simulation,COUNTING_DAY) - countShifts(b.name,simulation,COUNTING_DAY));
+                        if (midCandidates.length > 0) {
+                            const c = midCandidates[0];
+                            const orig = simulation[c.name][date];
+                            simulation[c.name][date] = 'MID';
+                            trackMove(c.name, c.priority.category, date, 'MID', orig);
+                            moveList.push({ name:c.name, date, shift:'MID', reason:'Weekend MID requirement (min 1)', type:c.type, job:c.job, skill:c.skill });
+                            moves++;
+                        }
+                    }
+                }
+            }
+        });
+
+        // ============================================================
+        // MINIMUM REQUIREMENTS ENFORCEMENT — day + mid shift staff
+        // Sort available dates by current RN coverage (least crowded first)
+        // so we don't pile everyone onto already-full dates
+        // ============================================================
+        staffRoster.forEach(staff => {
+            if (ANM_STAFF.includes(staff.name)) return;
+            if (EXCLUDED_STAFF.includes(staff.name)) return;
+            if (protectedStaff.includes(staff.name)) return;
+            if (staff.type === 'PRN') return;
+            if (staff.shift !== 'AM' && staff.shift !== 'MIDSHIFT') return;
+            // Only enforce minimums for clinical staff (RN/PCT) — skip non-standard job codes
+            if (!staff.job?.includes('RN') && !staff.job?.includes('PCT')) return;
+
+            const currentShifts = countEffectiveShifts(staff.name, simulation, COUNTING_DAY);
+            const required = staff.type==='FT' ? 18 : (staff.type==='PT' ? 12 : 0);
+            if (currentShifts >= required) return;
+
+            const needed = required - currentShifts;
+            const code = assignCode(staff);
+
+            // Sort available dates by ascending RN+MID count (fill least-staffed dates first)
+            const availableDates = dates
+                .filter(date => {
+                    const current = simulation[staff.name][date];
+                    if (current && current.trim() !== '') return false;
+                    return canAdd(staff, date, simulation, COUNTING_DAY, 'day');
+                })
+                .sort((a, b) => {
+                    // Count current RN+MID on each date
+                    const countDate = (d) => Object.values(simulation).filter(st => COUNTING_DAY.includes(st[d])).length;
+                    return countDate(a) - countDate(b); // lowest coverage first
+                });
+
+            let filled = 0;
+            for (const date of availableDates) {
+                if (filled >= needed) break;
+                // Respect RN max cap — don't add if already at max
+                const gaps = getGaps(date, simulation, COUNTING_DAY);
+                if (staff.job === 'RN' && gaps._rnCurrent >= gaps._rnMax) continue;
+                const originalValue = simulation[staff.name][date];
+                simulation[staff.name][date] = code;
+                trackMove(staff.name, 'late', date, code, originalValue);
+                moveList.push({ name:staff.name, date, shift:code, reason:`Enforce minimum (${staff.type} needs ${required})`, type:staff.type, job:staff.job, skill:staff.skill });
+                filled++; moves++;
+            }
+        });
+
+        moves += redistributeOvercap(simulation, dates, COUNTING_DAY, moveList);
+        return { simulation, dates, moves, moveList };
+    }
+
+    function balanceNightShift() {
+        const COUNTING_NIGHT = ['7P'];
+        const simulation = {};
+        const moveList = [];
+        const dates = Object.keys(rawData.dates.reduce((acc,d) => { acc[d.date]=true; return acc; }, {})).sort(chronoSort); // FIXED: chronological not alphabetical
+
+        staffRoster.forEach(s => {
+            // EXCLUDED_STAFF: in roster (122 count) but shifts blanked in simulation
+            const translated = EXCLUDED_STAFF.includes(s.name) ? {} : translateShifts(s.shifts, 'night');
+            simulation[s.name] = { ...s };
+            dates.forEach(date => { simulation[s.name][date] = translated[date] || ''; });
+        });
+
+        let moves = 0;
+        // Night weekends = Fri/Sat/Sun — sort those first
+        const sortedDates = [...dates].sort((a, b) => {
+            const dayA = parseDate(a).getDay(); const dayB = parseDate(b).getDay();
+            const wA = (dayA===5||dayA===6||dayA===0); const wB = (dayB===5||dayB===6||dayB===0);
+            if (wA && !wB) return -1; if (!wA && wB) return 1;
+            return parseDate(a) - parseDate(b);
+        });
+
+        sortedDates.forEach(date => {
+            const gaps = getGaps(date, simulation, COUNTING_NIGHT);
+            const rnMax = getRnMax(date);
+
+            // Live RN counter — same logic as day shift, prevents CN/EB/ES stacking
+            let liveRN = Object.values(simulation).filter(st => {
+                const sh = st[date]; return sh === '7P' && st.job === 'RN';
+            }).length;
+
+            // PCT first, then CN, EB, ES, then RN — same fill priority as day
+            const fillOrder = ['PCT', 'CN', 'EB', 'ES', 'RN'];
+            fillOrder.forEach(type => {
+                const needed = gaps[type];
+                if (!needed || needed <= 0) return;
+
+                const candidates = staffRoster
+                    .filter(s => canAdd(s, date, simulation, COUNTING_NIGHT, 'night'))
+                    .filter(s => s.type !== 'PRN')
+                    .filter(s => {
+                        if (type==='CN')  return s.skill?.includes('CN');
+                        if (type==='EB')  return s.skill?.includes('EB');
+                        if (type==='ES')  return s.skill?.includes('ES');
+                        if (type==='PCT') return s.job==='PCT';
+                        return s.job==='RN';
+                    })
+                    .map(s => ({ ...s, priority: getPriorityCategory(s, simulation, null) }))
+                    .sort((a,b) => {
+                        if (a.priority.tier !== b.priority.tier) return a.priority.tier - b.priority.tier;
+                        if (a.type==='FT' && b.type!=='FT') return -1;
+                        if (a.type!=='FT' && b.type==='FT') return 1;
+                        return countShifts(a.name,simulation,COUNTING_NIGHT) - countShifts(b.name,simulation,COUNTING_NIGHT);
+                    });
+
+                let filled = 0;
+                candidates.forEach(c => {
+                    if (filled >= needed) return;
+                    // Hard RN cap — same as day shift, no +5 ever
+                    if (c.job === 'RN' && liveRN >= rnMax) return;
+                    const originalValue = simulation[c.name][date];
+                    const wasBlank = !originalValue || String(originalValue).trim() === '';
+                    if (!wasBlank && !canAddMove(c.name, c.priority.category)) return;
+                    simulation[c.name][date] = '7P';
+                    trackMove(c.name, c.priority.category, date, '7P', originalValue);
+                    moveList.push({ name:c.name, date, shift:'7P', reason:`Fill ${type} gap`, type:c.type, job:c.job, skill:c.skill });
+                    if (c.job === 'RN') liveRN++;
+                    filled++; moves++;
+                });
+            });
+        });
+
+        // Minimum enforcement — sort dates by least-crowded first (same as day)
+        staffRoster.forEach(staff => {
+            if (ANM_STAFF.includes(staff.name)) return;
+            if (EXCLUDED_STAFF.includes(staff.name)) return;
+            if (protectedStaff.includes(staff.name)) return;
+            if (staff.type === 'PRN') return;
+            if (staff.shift !== 'PM') return;
+            // Only enforce minimums for clinical staff (RN/PCT) — skip non-standard job codes
+            if (!staff.job?.includes('RN') && !staff.job?.includes('PCT')) return;
+
+            const currentShifts = countEffectiveShifts(staff.name, simulation, COUNTING_NIGHT);
+            const required = staff.type==='FT' ? 18 : (staff.type==='PT' ? 12 : 0);
+            if (currentShifts >= required) return;
+
+            const needed = required - currentShifts;
+            const availableDates = dates
+                .filter(date => {
+                    const current = simulation[staff.name][date];
+                    if (current && current.trim() !== '') return false;
+                    return canAdd(staff, date, simulation, COUNTING_NIGHT, 'night');
+                })
+                .sort((a, b) => {
+                    const countDate = (d) => Object.values(simulation).filter(st => st[d] === '7P').length;
+                    return countDate(a) - countDate(b); // least-staffed dates first
+                });
+
+            let filled = 0;
+            for (const date of availableDates) {
+                if (filled >= needed) break;
+                // Respect RN cap — don't pile onto already-full dates
+                const gaps = getGaps(date, simulation, COUNTING_NIGHT);
+                if (staff.job === 'RN' && gaps._rnCurrent >= gaps._rnMax) continue;
+                const originalValue = simulation[staff.name][date];
+                simulation[staff.name][date] = '7P';
+                trackMove(staff.name, 'late', date, '7P', originalValue);
+                moveList.push({ name:staff.name, date, shift:'7P', reason:`Enforce minimum (${staff.type} needs ${required})`, type:staff.type, job:staff.job, skill:staff.skill });
+                filled++; moves++;
+            }
+        });
+
+        moves += redistributeOvercap(simulation, dates, COUNTING_NIGHT, moveList);
+        return { simulation, dates, moves, moveList };
+    }
+
+    function translateShifts(shifts, mode) {
+        const translated = {};
+        Object.entries(shifts).forEach(([date, raw]) => {
+            let code = '';
+            const upper = String(raw).toUpperCase();
+            if (mode === 'day') {
+                if (upper.includes('6T19')||upper.includes('7A')) code = '7A';
+                else if (upper.includes('10W2')||upper==='10A'||upper==='MID') code = 'MID'; // normalise to MID
+                else if (upper.includes('R/O')||upper==='RO') code = 'R/O';
+                else if (upper.includes('PTO')||upper.includes('VAC')) code = 'PTO';
+                else if (upper==='PAYRO'||upper.startsWith('PAYRO')) code = 'PAYRO';
+                else if (upper==='ADMIN') code = 'ADMIN';
+            } else {
+                if (upper.includes('18T7')||upper==='7P') code = '7P';
+                else if (upper.includes('R/O')||upper==='RO') code = 'R/O';
+                else if (upper.includes('PTO')||upper.includes('VAC')) code = 'PTO';
+                else if (upper==='PAYRO'||upper.startsWith('PAYRO')) code = 'PAYRO';
+                else if (upper==='ADMIN') code = 'ADMIN';
+            }
+            translated[date] = code;
+        });
+        return translated;
+    }
+
+
+
+
+    // Move excess RNs from over-cap dates to dates with room under the cap
+    function redistributeOvercap(simulation, dates, countingCodes, moveList) {
+        const isDay = countingCodes.includes('7A') || countingCodes.includes('MID');
+        const balMode = isDay ? 'day' : 'night';
+        let moved = 0;
+
+        // Find over-cap dates, worst first
+        const overCapDates = [...dates].filter(d => {
+            const g = getGaps(d, simulation, countingCodes);
+            return g._rnCurrent > g._rnMax;
+        }).sort((a, b) => {
+            const ga = getGaps(a, simulation, countingCodes);
+            const gb = getGaps(b, simulation, countingCodes);
+            return (gb._rnCurrent - gb._rnMax) - (ga._rnCurrent - ga._rnMax);
+        });
+
+        overCapDates.forEach(overDate => {
+            let g = getGaps(overDate, simulation, countingCodes);
+            let excess = g._rnCurrent - g._rnMax;
+            if (excess <= 0) return;
+
+            // Who can we move? Non-ANM, non-excluded, RN, has shift, has move capacity
+            const moveable = staffRoster.filter(s => {
+                if (ANM_STAFF.includes(s.name) || EXCLUDED_STAFF.includes(s.name)) return false;
+                if (protectedStaff.includes(s.name)) return false;
+                if (s.job !== 'RN') return false;
+                const sh = simulation[s.name][overDate];
+                return isDay ? (sh === '7A' || sh === 'MID') : sh === '7P';
+            }).map(s => ({ ...s, priority: getPriorityCategory(s, simulation, null) }))
+              .sort((a, b) => b.priority.tier - a.priority.tier);
+
+            for (const staff of moveable) {
+                if (excess <= 0) break;
+                if (!canAddMove(staff.name, staff.priority.category)) continue;
+
+                const origShift = simulation[staff.name][overDate];
+                simulation[staff.name][overDate] = ''; // temporarily remove
+
+                // Find a destination: below hard cap, staff can add there
+                const dest = [...dates].filter(d => {
+                    if (d === overDate) return false;
+                    const dg = getGaps(d, simulation, countingCodes);
+                    if (dg._rnCurrent >= dg._rnMax) return false;
+                    return canAdd(staff, d, simulation, countingCodes, balMode);
+                }).sort((a, b) => {
+                    // Most room under cap first
+                    const ga = getGaps(a, simulation, countingCodes);
+                    const gb = getGaps(b, simulation, countingCodes);
+                    return (gb._rnMax - gb._rnCurrent) - (ga._rnMax - ga._rnCurrent);
+                })[0];
+
+                if (!dest) { simulation[staff.name][overDate] = origShift; continue; }
+
+                const code = (isDay && staff.shift === 'MIDSHIFT') ? 'MID' : (isDay ? '7A' : '7P');
+                simulation[staff.name][dest] = code;
+                moveTracker[staff.name] = (moveTracker[staff.name] || 0) + 1;
+                moveList.push({ name:staff.name, date:dest, shift:code,
+                    reason:`Redistributed from over-cap ${overDate}`,
+                    type:staff.type, job:staff.job, skill:staff.skill });
+                excess--; moved++;
+            }
+        });
+        return moved;
+    }
+
+    function getGaps(date, simulation, countingCodes) {
+        let rn=0, pct=0, chg=0, eb=0, es=0;
+        const isDay = countingCodes.includes('7A') || countingCodes.includes('MID');
+        Object.values(simulation).forEach(staff => {
+            if (EXCLUDED_STAFF.includes(staff.name)) return; // excluded staff don't affect gap calc
+            const shift = staff[date];
+            // MID counts toward day coverage only — never toward night
+            const counts = countingCodes.includes(shift) || (isDay && shift === 'MID');
+            if (!counts) return;
+            if (staff.job==='RN') { rn++; if (staff.skill?.includes('CN')) chg++; if (staff.skill?.includes('EB')) eb++; if (staff.skill?.includes('ES')) es++; }
+            else if (staff.job==='PCT') { pct++; }
+        });
+        const rnMin  = getRnMin(date);
+        const pctMin = getPctMin(date);
+        const rnMax  = getRnMax(date);
+        return {
+            RN:  rn  >= rnMax  ? 0 : Math.max(0, rnMin  - rn),
+            PCT: Math.max(0, pctMin - pct),
+            CN:  Math.max(0, requirements.CN - chg),
+            EB:  Math.max(0, requirements.EB - eb),
+            ES:  Math.max(0, requirements.ES - es),
+            _rnCurrent: rn, _rnMax: rnMax
+        };
+    }
+
+    function detectShiftType(staffSchedule) {
+        const dayCodes=['7A','10A','12P','MID'], nightCodes=['7P'];
+        let dayCount=0, nightCount=0;
+        Object.values(staffSchedule).forEach(code => {
+            if (dayCodes.includes(code)) dayCount++;
+            if (nightCodes.includes(code)) nightCount++;
+        });
+        if (dayCount===0&&nightCount===0) return 'unassigned';
+        if (dayCount>nightCount) return 'day';
+        if (nightCount>dayCount) return 'night';
+        return 'day';
+    }
+
+    function canAdd(staff, date, simulation, countingCodes, balancingMode) {
+        if (ANM_STAFF.includes(staff.name)) return false;
+        if (EXCLUDED_STAFF.includes(staff.name)) return false;  // excluded from balancing but visible in roster
+        if (protectedStaff.includes(staff.name)) return false;
+        // Day balancing: allow AM AND MIDSHIFT staff (MID counts toward day coverage)
+        if (balancingMode==='day'  && staff.shift!=='AM' && staff.shift!=='MIDSHIFT') return false;
+        if (balancingMode==='night' && staff.shift!=='PM') return false;
+        const staffShiftType = detectShiftType(simulation[staff.name]);
+        if (staffShiftType!=='unassigned' && staffShiftType!==balancingMode) return false;
+        const current = simulation[staff.name][date];
+        if (countingCodes.includes(current)) return false;
+        // Block scheduling on any non-working or protected day
+        // Per code reference: SICK, LOA added; PAYRO added v28; ADMIN added v28b
+        if (['R/O','PTO','HOL','FMLA','LOA','PAYRO','SICK','ADMIN'].includes(current)) return false;
+        // CRITICAL: must sort chronologically — alphabetical sort breaks week boundary calc
+        const allDates = Object.keys(simulation[staff.name]).filter(k => /^\d+\/\d+\/[\s\d]{4,5}$/.test(k.trim())).sort(chronoSort);
+        const dateIdx = allDates.indexOf(date);
+        if (dateIdx===-1) return false;
+        let consecutiveBefore=0;
+        for (let i=dateIdx-1; i>=0; i--) { if (countingCodes.includes(simulation[staff.name][allDates[i]])) consecutiveBefore++; else break; }
+        let consecutiveAfter=0;
+        for (let i=dateIdx+1; i<allDates.length; i++) { if (countingCodes.includes(simulation[staff.name][allDates[i]])) consecutiveAfter++; else break; }
+        if (consecutiveBefore+consecutiveAfter>=3) return false;
+        const weekNum=Math.floor(dateIdx/7), weekStart=weekNum*7, weekEnd=Math.min(weekStart+7,allDates.length);
+        let weekShiftCount=0, weekPTOCount=0;
+        for (let i=weekStart; i<weekEnd; i++) {
+            const sv = simulation[staff.name][allDates[i]];
+            if (countingCodes.includes(sv)) weekShiftCount++;
+            // Per code reference: PTO, FMLA, LOA count toward weekly shift requirement
+            // SICK does NOT count (sick time ≠ approved leave for scheduling purposes)
+            // ADMIN counts (ANM office/admin shift fulfills their weekly obligation)
+            if (sv==='PTO'||sv==='VAC'||sv==='FMLA'||sv==='LOA'||sv==='ADMIN') weekPTOCount++;
+        }
+        if (staff.type==='FT') { if (weekPTOCount>=3) return false; if (weekShiftCount+weekPTOCount>=3) return false; }
+        if (staff.type==='PT') { if (weekPTOCount>=2) return false; if (weekShiftCount+weekPTOCount>=2) return false; }
+        const ppNum=Math.floor(dateIdx/14), ppStart=ppNum*14, ppEnd=Math.min(ppStart+14,allDates.length);
+        let ppShiftCount=0;
+        for (let i=ppStart; i<ppEnd; i++) { if (countingCodes.includes(simulation[staff.name][allDates[i]])) ppShiftCount++; }
+        if (staff.type!=='PRN' && ppShiftCount>=10) return false;
+        let totalShifts=0;
+        for (let i=0; i<allDates.length; i++) { if (countingCodes.includes(simulation[staff.name][allDates[i]])) totalShifts++; }
+        if (staff.type==='FT' && totalShifts>=21) return false;
+        if (staff.type==='PT' && totalShifts>=15) return false;
+        return true;
+    }
+
+    // =====================================================
+    // FIX 2: isWeekendDay uses current year, not 2024
+    // =====================================================
+    function isWeekendDay(dateStr, shift) {
+        const date = parseDate(dateStr);
+        const dayOfWeek = date.getDay();
+        if (shift === 'day') return dayOfWeek === 0 || dayOfWeek === 6;
+        if (shift === 'night') return dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6;
+        return false;
+    }
+
+    function checkWeekendRequirements(simulation, staffRoster) {
+        const results = {};
+        const dayCodes=['7A','10A','12P'], nightCodes=['7P'];
+        staffRoster.forEach(staff => {
+            let weekendCount=0, sundayCount=0;
+            const shiftType = detectShiftType(simulation[staff.name]);
+            Object.entries(simulation[staff.name]).forEach(([dateStr, code]) => {
+                if ([...dayCodes,...nightCodes].includes(code)) {
+                    if (isWeekendDay(dateStr, shiftType)) {
+                        weekendCount++;
+                                    const d = parseDate(dateStr);
+                        if (d.getDay()===0) sundayCount++;
+                    }
+                }
+            });
+            let required=0, sundaysRequired=0;
+            if (staff.type==='FT') { if (shiftType==='day') { required=5; sundaysRequired=2; } else { required=7; } }
+            else if (staff.type==='PT') { required=4; sundaysRequired=shiftType==='day'?2:0; }
+            results[staff.name] = { weekendCount, sundayCount, required, sundaysRequired, meetsRequirement: weekendCount>=required&&sundayCount>=sundaysRequired, shiftType, type:staff.type };
+        });
+        return results;
+    }
+
+    function countShifts(name, simulation, countingCodes) {
+        const staff = simulation[name];
+        return Object.values(staff).filter(s => countingCodes.includes(s)).length;
+    }
+
+    // PTO = WORKED SHIFT for minimum requirement purposes (per code reference v28)
+    // PTO, FMLA, LOA, ADMIN → count toward 18 (FT) / 12 (PT) minimum
+    // SICK → does NOT count (sick time ≠ approved leave, doesn't fulfill minimum)
+    function countEffectiveShifts(name, simulation, countingCodes) {
+        const staff = simulation[name];
+        let count = 0;
+        Object.values(staff).forEach(s => {
+            if (countingCodes.includes(s)) count++;          // actual working shift
+            if (s === 'PTO' || s === 'VAC') count++;         // approved leave counts
+            if (s === 'FMLA' || s === 'LOA') count++;        // protected leave counts
+            if (s === 'ADMIN') count++;                       // ANM admin shift counts (e.g. Rowena 4am-12pm)
+            // SICK does NOT count — sick days don't fulfill minimum shift requirement
+        });
+        return count;
+    }
+
+    // =====================================================
+    // FIX 1: detectLateSubmitter - FT threshold now 18
+    // =====================================================
+    function detectLateSubmitter(staffMember) {
+        if (ANM_STAFF.includes(staffMember.name)) return false;
+        const staffType = staffMember.type || 'FT';
+        if (staffType === 'PRN') return false;
+        const originalShifts = staffMember.shifts || {};
+        const dateKeys = Object.keys(originalShifts);
+        if (dateKeys.length === 0) return true;
+        const submittedDays = dateKeys.filter(date => {
+            const value = originalShifts[date];
+            return value && String(value).trim() !== '';
+        }).length;
+        // FIXED: FT threshold is now 18 (was incorrectly 6)
+        const threshold = staffType === 'PT' ? 12 : 18;
+        return submittedDays < threshold;
+    }
+
+    function detectNonCompliant(staffMember, weekendResults) {
+        if (!weekendResults || !weekendResults[staffMember.name]) return false;
+        return !weekendResults[staffMember.name].meetsRequirement;
+    }
+
+    function getPriorityCategory(staffMember, simulation, weekendResults) {
+        if (detectLateSubmitter(staffMember)) return { tier:1, category:'late', cap:MOVE_CAPS.late };
+        if (detectNonCompliant(staffMember, weekendResults)) return { tier:2, category:'nonCompliant', cap:MOVE_CAPS.nonCompliant };
+        return { tier:3, category:'compliant', cap:MOVE_CAPS.compliant };
+    }
+
+    function canAddMove(staffName, category) {
+        const currentMoves = moveTracker[staffName] || 0;
+        return currentMoves < MOVE_CAPS[category];
+    }
+
+    function trackMove(staffName, category, date, shift, originalValue) {
+        if (!moveTracker[staffName]) moveTracker[staffName] = 0;
+        if (!addedShiftsTracker[staffName]) addedShiftsTracker[staffName] = 0;
+        const wasBlank = !originalValue || String(originalValue).trim() === '';
+        if (wasBlank) addedShiftsTracker[staffName]++;
+        else moveTracker[staffName]++;
+        moveCategories[staffName] = category;
+    }
+
+    function updateProgress(percent, text) {
+        document.getElementById('progressFill').style.width = percent + '%';
+        document.getElementById('progressText').textContent = text;
+    }
+
+    function displayResults() {
+        const content = document.getElementById('resultsContent');
+        let html = '';
+        if (balancedResults.day) html += generateResultHTML('Day Shift', balancedResults.day, ['7A','10A','12P']);
+        if (balancedResults.night) html += generateResultHTML('Night Shift', balancedResults.night, ['7P']);
+        content.innerHTML = html;
+        displayMoveTracker();
+        document.getElementById('moveTrackerSection').classList.remove('hidden');
+        displayWeekendRequirements();
+        document.getElementById('weekendRequirementsSection').classList.remove('hidden');
+        if (balancedResults.lateSubmitters && balancedResults.lateSubmitters.length > 0) {
+            displayLateSubmitters();
+            document.getElementById('lateSubmittersSection').classList.remove('hidden');
+        }
+    }
+
+    function displayMoveTracker() {
+        const content = document.getElementById('moveTrackerContent');
+        let allMoves = [];
+        if (balancedResults.day) allMoves = allMoves.concat(balancedResults.day.moveList.map(m=>({...m,shift:'☀️ Day'})));
+        if (balancedResults.night) allMoves = allMoves.concat(balancedResults.night.moveList.map(m=>({...m,shift:'🌙 Night'})));
+        let html = '';
+        if (allMoves.length === 0) { html = '<div class="alert alert-success">No moves needed!</div>'; content.innerHTML = html; return; }
+        const staffSummary = {};
+        allMoves.forEach(move => {
+            if (!staffSummary[move.name]) staffSummary[move.name] = { count:0, dates:[], type:move.type, job:move.job, skill:move.skill };
+            staffSummary[move.name].count++; staffSummary[move.name].dates.push(move.date);
+        });
+        const totalAdded = Object.values(addedShiftsTracker).reduce((sum,c)=>sum+c,0);
+        const totalMoved = Object.values(moveTracker).reduce((sum,c)=>sum+c,0);
+        html += '<div style="margin-bottom:16px;padding:12px;background:#edf2f7;border-radius:8px;font-size:14px;">';
+        html += '<strong>📊 What do these numbers mean?</strong><br>';
+        html += '<span style="color:#22543d;">✅ <strong>Added Shifts</strong> = Filled blank dates (helping them get paid)</span><br>';
+        html += '<span style="color:#742a2a;">⚠️ <strong>Moved Shifts</strong> = Changed submitted dates (overriding preference)</span></div>';
+        html += '<div class="stats-grid">';
+        html += `<div class="stat-card"><div class="stat-value" style="color:#22543d;">${totalAdded}</div><div class="stat-label">Added Shifts</div></div>`;
+        html += `<div class="stat-card"><div class="stat-value" style="color:#742a2a;">${totalMoved}</div><div class="stat-label">Moved Shifts</div></div>`;
+        html += `<div class="stat-card"><div class="stat-value">${Object.keys(staffSummary).length}</div><div class="stat-label">Staff Affected</div></div></div>`;
+        html += '<div style="margin-top:24px;overflow-x:auto;"><table class="staff-table"><thead><tr><th>Name</th><th>Job</th><th>Type</th><th>Skills</th><th style="background:#c6f6d5;">Added</th><th style="background:#fed7d7;">Moved</th><th>Dates</th></tr></thead><tbody>';
+        Object.entries(staffSummary).sort((a,b)=>b[1].count-a[1].count).forEach(([name,data]) => {
+            const addedCount = addedShiftsTracker[name]||0;
+            const movedCount = moveTracker[name]||0;
+            html += `<tr><td>${name}</td><td>${data.job}</td><td>${data.type}</td><td>${data.skill||'-'}</td>`;
+            html += `<td style="background:#f0fff4;"><strong style="color:#22543d;">${addedCount}</strong></td>`;
+            html += `<td style="background:#fff5f5;"><strong style="color:#742a2a;">${movedCount}</strong></td>`;
+            html += `<td style="font-size:12px;">${data.dates.slice(0,5).join(', ')}${data.dates.length>5?'...':''}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+        content.innerHTML = html;
+    }
+
+    function displayWeekendRequirements() {
+        const content = document.getElementById('weekendRequirementsContent');
+        let allRequirements = {};
+        if (balancedResults.day) { Object.entries(checkWeekendRequirements(balancedResults.day.simulation, staffRoster)).forEach(([name,req]) => { if (!allRequirements[name]) allRequirements[name]=req; }); }
+        if (balancedResults.night) { Object.entries(checkWeekendRequirements(balancedResults.night.simulation, staffRoster)).forEach(([name,req]) => { if (!allRequirements[name]) allRequirements[name]=req; }); }
+        const total=Object.keys(allRequirements).length;
+        const metRequirement=Object.values(allRequirements).filter(r=>r.meetsRequirement).length;
+        const notMet=total-metRequirement;
+        let html = '<div class="stats-grid">';
+        html += `<div class="stat-card"><div class="stat-value">${metRequirement}/${total}</div><div class="stat-label">Met Requirements</div></div>`;
+        html += `<div class="stat-card"><div class="stat-value">${notMet}</div><div class="stat-label">Below Minimum</div></div>`;
+        html += `<div class="stat-card"><div class="stat-value">FT Day: 5</div><div class="stat-label">Min Weekend Shifts</div></div>`;
+        html += `<div class="stat-card"><div class="stat-value">FT Night: 7</div><div class="stat-label">Min Weekend Shifts</div></div></div>`;
+        const unmetStaff = Object.entries(allRequirements).filter(([,req])=>!req.meetsRequirement);
+        if (unmetStaff.length > 0) {
+            html += `<div class="alert alert-warning" style="margin-top:16px;"><strong>⚠️ ${unmetStaff.length} staff below weekend minimum</strong></div>`;
+            html += '<table class="staff-table" style="margin-top:16px;"><thead><tr><th>Name</th><th>Type</th><th>Shift</th><th>Weekend</th><th>Sundays</th><th>Required</th><th>Status</th></tr></thead><tbody>';
+            unmetStaff.sort((a,b)=>a[0].localeCompare(b[0])).forEach(([name,req]) => {
+                html += `<tr><td>${name}</td><td>${req.type}</td><td>${req.shiftType==='day'?'☀️ Day':'🌙 Night'}</td>`;
+                html += `<td>${req.weekendCount}</td><td>${req.sundayCount}</td><td>${req.required}</td><td><span style="color:#e53e3e;">⚠️ Below</span></td></tr>`;
+            });
+            html += '</tbody></table>';
+        } else { html += '<div class="alert alert-success" style="margin-top:16px;">✅ All staff meet weekend requirements!</div>'; }
+        html += '<details style="margin-top:16px;"><summary style="cursor:pointer;font-weight:600;padding:8px 0;">📋 View Complete Weekend Summary</summary>';
+        html += '<table class="staff-table" style="margin-top:8px;"><thead><tr><th>Name</th><th>Type</th><th>Shift</th><th>Weekend</th><th>Sundays</th><th>Required</th><th>Status</th></tr></thead><tbody>';
+        Object.entries(allRequirements).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([name,req]) => {
+            const status = req.meetsRequirement ? '<span style="color:#38a169;">✅ Met</span>' : '<span style="color:#e53e3e;">⚠️ Below</span>';
+            html += `<tr><td>${name}</td><td>${req.type}</td><td>${req.shiftType==='day'?'☀️ Day':'🌙 Night'}</td><td>${req.weekendCount}</td><td>${req.sundayCount}</td><td>${req.required}</td><td>${status}</td></tr>`;
+        });
+        html += '</tbody></table></details>';
+        content.innerHTML = html;
+    }
+
+    function displayLateSubmitters() {
+        const content = document.getElementById('lateSubmittersContent');
+        const lateSubmitters = balancedResults.lateSubmitters || [];
+        if (lateSubmitters.length === 0) { content.innerHTML = '<div class="alert alert-success">✅ All staff have submitted enough shifts!</div>'; return; }
+        const byType = { FT: lateSubmitters.filter(s=>s.staffType==='FT'), PT: lateSubmitters.filter(s=>s.staffType==='PT') };
+        let html = '<div class="stats-grid">';
+        html += `<div class="stat-card"><div class="stat-value" style="color:#e53e3e;">${lateSubmitters.length}</div><div class="stat-label">Late Submitters</div></div>`;
+        html += `<div class="stat-card"><div class="stat-value">${byType.FT.length}</div><div class="stat-label">Full-Time</div></div>`;
+        html += `<div class="stat-card"><div class="stat-value">${byType.PT.length}</div><div class="stat-label">Part-Time</div></div>`;
+        html += `<div class="stat-card"><div class="stat-value">Sunday</div><div class="stat-label">Deadline</div></div></div>`;
+        html += '<div class="alert alert-warning" style="margin-top:16px;"><strong>⚠️ These staff need to submit more shifts before Sunday\'s deadline:</strong><br>';
+        html += '• FT: Need ≥18 shifts (3/week × 6 weeks)<br>• PT: Need ≥12 shifts (2/week × 6 weeks)</div>';
+        html += '<table class="staff-table" style="margin-top:16px;"><thead><tr><th>Name</th><th>Job</th><th>Type</th><th>Submitted</th><th>Required</th><th>Missing</th></tr></thead><tbody>';
+        lateSubmitters.sort((a,b)=>a.name.localeCompare(b.name)).forEach(s => {
+            const actualRequired = s.staffType==='FT' ? 18 : 12;
+            const missing = actualRequired - s.submitted;
+            const missingSeverity = missing>=10?'color:#e53e3e;':missing>=6?'color:#ed8936;':'color:#d69e2e;';
+            html += `<tr><td>${s.name}</td><td>${s.job}</td><td>${s.staffType}</td><td>${s.submitted}</td><td>${actualRequired}</td><td style="${missingSeverity}"><strong>-${missing}</strong></td></tr>`;
+        });
+        html += '</tbody></table>';
+        content.innerHTML = html;
+    }
+
+    function generateResultHTML(title, result, countingCodes) {
+        const { simulation, dates, moves } = result;
+        let metDays=0;
+        dates.forEach(date => { const gaps=getGaps(date,simulation,countingCodes); if (Object.values(gaps).every(v=>v===0)) metDays++; });
+        return `<div class="alert alert-success"><strong>✅ ${title} Balanced</strong><br>${moves} shifts added • ${metDays}/${dates.length} days fully met</div>
+        <div class="stats-grid">
+            <div class="stat-card"><div class="stat-value">${metDays}/${dates.length}</div><div class="stat-label">Days Met</div></div>
+            <div class="stat-card"><div class="stat-value">${moves}</div><div class="stat-label">Shifts Added</div></div>
+            <div class="stat-card"><div class="stat-value">${staffRoster.length}</div><div class="stat-label">Staff</div></div>
+            <div class="stat-card"><div class="stat-value">${dates.length}</div><div class="stat-label">Days</div></div>
+        </div>`;
+    }
+
+    function copyFeedback() {
+        const name    = document.getElementById('fbName').value.trim();
+        const type    = document.getElementById('fbType').value;
+        const text    = document.getElementById('fbText').value.trim();
+        const steps   = document.getElementById('fbSteps').value.trim();
+        if (!text) { alert('Please write your feedback before copying.'); return; }
+        const now     = new Date().toLocaleString('en-US', { dateStyle:'medium', timeStyle:'short' });
+        const toolVer = 'CVICU Schedule Balancer v30';
+        let msg = `=== CVICU BALANCER FEEDBACK ===\n`;
+        msg += `Tool: ${toolVer}\n`;
+        msg += `Date: ${now}\n`;
+        if (name)  msg += `Submitted by: ${name}\n`;
+        msg += `Type: ${type}\n`;
+        msg += `\n--- FEEDBACK ---\n${text}\n`;
+        if (steps) msg += `\n--- STEPS TO REPRODUCE ---\n${steps}\n`;
+        msg += `\n================================`;
+        navigator.clipboard.writeText(msg).then(() => {
+            const confirm = document.getElementById('fbCopyConfirm');
+            confirm.style.display = 'block';
+            setTimeout(() => { confirm.style.display = 'none'; }, 5000);
+        }).catch(() => {
+            // Fallback for browsers that block clipboard
+            const ta = document.createElement('textarea');
+            ta.value = msg; document.body.appendChild(ta);
+            ta.select(); document.execCommand('copy');
+            document.body.removeChild(ta);
+            const confirm = document.getElementById('fbCopyConfirm');
+            confirm.style.display = 'block';
+            setTimeout(() => { confirm.style.display = 'none'; }, 5000);
+        });
+    }
+
+    function clearFeedback() {
+        document.getElementById('fbName').value  = '';
+        document.getElementById('fbText').value  = '';
+        document.getElementById('fbSteps').value = '';
+        document.getElementById('fbType').value  = 'Bug Report 🐛';
+        document.getElementById('fbCopyConfirm').style.display = 'none';
+    }
+
+    function downloadExcel() {
+        if (!balancedResults || !rawData) { alert('⚠️ Run balancing first.'); return; }
+        try {
+            const wb = XLSX.utils.book_new();
+            if (balancedResults.day)   addDayCoverageSummarySheet(wb);
+            if (balancedResults.night) addNightCoverageSummarySheet(wb);
+            if (balancedResults.day)   addDayShiftSheet(wb, balancedResults.day);
+            if (balancedResults.night) addNightShiftSheet(wb, balancedResults.night);
+            addOriginalMyTimeSheet(wb);
+            XLSX.writeFile(wb, 'CVICU_Balanced_Schedule_v30.xlsx');
+        } catch (error) { alert('Download failed: ' + error.message); }
+    }
+
+    function addDayCoverageSummarySheet(wb) {
+        const dates = rawData.dates.map(d => d.date);
+        const COUNTING_DAY = ['7A','MID'];
+        const simulation = balancedResults.day ? balancedResults.day.simulation : {};
+        const dailyCoverage = dates.map(date => {
+            let rnCount=0, pctCount=0, chgCount=0, ebCount=0, esCount=0;
+            staffRoster.forEach(staff => {
+                if (EXCLUDED_STAFF.includes(staff.name)) return; // excluded staff not counted in coverage
+                const staffData = simulation[staff.name];
+                const shift = staffData ? staffData[date] : '';
+                if (COUNTING_DAY.includes(shift)) {
+                    if (staff.job?.includes('RN')) { rnCount++; if (staff.skill?.includes('CN')) chgCount++; if (staff.skill?.includes('EB')) ebCount++; if (staff.skill?.includes('ES')) esCount++; }
+                    if (staff.job?.includes('PCT')) pctCount++;
+                }
+            });
+            const rnMin  = getRnMin(date);
+            const pctMin = getPctMin(date);
+            const rnMax  = getRnMax(date);
+            const we = isWeekendDate(date);
+            return { date, rn:rnCount, pct:pctCount, chg:chgCount, eb:ebCount, es:esCount, rnMin, rnMax, pctMin, we };
+        });
+        const data = [
+            ['DAY SHIFT COVERAGE SUMMARY - v30'],
+            ['Counts 7A and MID shifts | RN Min = staffing target | RN Max = cap (no +5)'],
+            [],
+            ['Date','Day','Week','PP','Type','RN','RN Min','RN Max','RN +/-','PCT','PCT Min','PCT +/-','CN','EB','ES','Status']
+        ];
+        dailyCoverage.forEach((day, idx) => {
+            const dayOfWeek = parseDate(day.date).toLocaleDateString('en-US',{weekday:'short'});
+            const week = Math.floor(idx/7)+1; const pp = Math.floor(idx/14)+1;
+            const type = day.we ? 'Weekend' : 'Weekday';
+            const net = day.rn - day.rnMin;
+            const ok = day.rn>=day.rnMin && day.pct>=day.pctMin ? (net>4?'⚠️ Over cap':'OK') : 'Gap';
+            data.push([day.date,dayOfWeek,week,pp,type,day.rn,day.rnMin,day.rnMax,net,day.pct,day.pctMin,day.pct-day.pctMin,day.chg,day.eb,day.es,ok]);
+        });
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), '📅 Day Coverage');
+    }
+
+    function addNightCoverageSummarySheet(wb) {
+        const dates = rawData.dates.map(d => d.date);
+        const COUNTING_NIGHT = ['7P'];
+        const simulation = balancedResults.night.simulation;
+        const nightCoverage = dates.map(date => {
+            let rnCount=0, pctCount=0, chgCount=0, ebCount=0, esCount=0;
+            staffRoster.forEach(staff => {
+                if (EXCLUDED_STAFF.includes(staff.name)) return; // excluded staff not counted
+                const shift = simulation[staff.name] ? simulation[staff.name][date] : '';
+                if (!COUNTING_NIGHT.includes(shift)) return;
+                if (staff.job?.includes('RN')) { rnCount++; if (staff.skill?.includes('CN')) chgCount++; if (staff.skill?.includes('EB')) ebCount++; if (staff.skill?.includes('ES')) esCount++; }
+                if (staff.job?.includes('PCT')) pctCount++;
+            });
+            // Night shift weekend = Fri/Sat/Sun
+            const dow = parseDate(date).getDay();
+            const we = (dow === 5 || dow === 6 || dow === 0);
+            const rnMin  = we ? requirements.RN_WE : requirements.RN_WD;
+            const pctMin = we ? requirements.PCT_WE : requirements.PCT_WD;
+            const rnMax  = getRnMax(date);
+            return { date, rn:rnCount, pct:pctCount, chg:chgCount, eb:ebCount, es:esCount, rnMin, rnMax, pctMin, we };
+        });
+        const data = [
+            ['NIGHT SHIFT COVERAGE SUMMARY - v30'],
+            ['Counts 7P shifts | Weekend for night = Fri/Sat/Sun'],
+            [],
+            ['Date','Day','Week','PP','Type','RN','RN Min','RN Max','RN +/-','PCT','PCT Min','PCT +/-','CN','EB','ES','Status']
+        ];
+        nightCoverage.forEach((day, idx) => {
+            const dayOfWeek = parseDate(day.date).toLocaleDateString('en-US',{weekday:'short'});
+            const week = Math.floor(idx/7)+1; const pp = Math.floor(idx/14)+1;
+            const type = day.we ? 'Weekend (Fri-Sun)' : 'Weekday';
+            const net = day.rn - day.rnMin;
+            const ok = day.rn>=day.rnMin && day.pct>=day.pctMin ? 'OK' : 'Gap';
+            data.push([day.date,dayOfWeek,week,pp,type,day.rn,day.rnMin,day.rnMax,net,day.pct,day.pctMin,day.pct-day.pctMin,day.chg,day.eb,day.es,ok]);
+        });
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), '🌙 Night Coverage');
+    }
+
+    function addShiftSheet(wb, result, sheetName, shiftLabel) {
+        const { simulation, dates } = result;
+        const anms  = staffRoster.filter(s=>ANM_STAFF.includes(s.name));
+        const mids  = staffRoster.filter(s=>s.shift==='MIDSHIFT'&&!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name));
+        const rns   = staffRoster.filter(s=>s.job?.includes('RN')&&s.shift!=='MIDSHIFT'&&!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name));
+        const pcts  = staffRoster.filter(s=>s.job?.includes('PCT'));
+        const data = [[`AUTO-BALANCED ${shiftLabel} SCHEDULE - v30`],['Name','Job','Type','Skills',...dates]];
+        if (anms.length>0)  { data.push(['=== ANMs ===']); anms.forEach(staff => { const sd=simulation[staff.name]; data.push([staff.name,staff.job,staff.type,staff.skill,...dates.map(d=>sd[d]||'')]); }); data.push([]); }
+        if (mids.length>0)  { data.push(['=== MID SHIFT RNs ===']); mids.forEach(staff => { const sd=simulation[staff.name]; data.push([staff.name,staff.job,staff.type,staff.skill,...dates.map(d=>sd[d]||'')]); }); data.push([]); }
+        if (rns.length>0)   { data.push(['=== RNs ===']); rns.forEach(staff => { const sd=simulation[staff.name]; data.push([staff.name,staff.job,staff.type,staff.skill,...dates.map(d=>sd[d]||'')]); }); data.push([]); }
+        if (pcts.length>0)  { data.push(['=== PCTs ===']); pcts.forEach(staff => { const sd=simulation[staff.name]; data.push([staff.name,staff.job,staff.type,staff.skill,...dates.map(d=>sd[d]||'')]); }); }
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), sheetName);
+    }
+    function addDayShiftSheet(wb, result) { addShiftSheet(wb, result, 'Day Shift', 'DAY SHIFT'); }
+    function addNightShiftSheet(wb, result) { addShiftSheet(wb, result, 'Night Shift', 'NIGHT SHIFT'); }
+
+    function addOriginalMyTimeSheet(wb) {
+        const dates = rawData.dates.map(d => d.date);
+        const data = [['ORIGINAL MYTIME IMPORT (PRE-BALANCE)'],['Name','Job','Type','Skills',...dates]];
+        staffRoster.forEach(staff => { data.push([staff.name,staff.job,staff.type,staff.skill,...dates.map(d=>staff.shifts[d]||'')]); });
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), 'Original MyTime');
+    }
+
+    function downloadCSV() {
+        if (!balancedResults) { alert('Run balancing first.'); return; }
+        if (balancedResults.day) downloadFile(generateCSV(balancedResults.day), 'cvicu_day_balanced_v28.csv', 'text/csv');
+        if (balancedResults.night) downloadFile(generateCSV(balancedResults.night), 'cvicu_night_balanced_v28.csv', 'text/csv');
+    }
+
+    function generateCSV(result) {
+        const { simulation, dates } = result;
+        if (!dates || dates.length === 0) return '';
+        let csv = 'Name,Job,Type,Skills,' + dates.join(',') + '\n';
+        staffRoster.forEach(staff => {
+            const staffData = simulation[staff.name];
+            if (!staffData) return;
+            csv += `${staff.name},${staff.job},${staff.type},${staff.skill||''},${dates.map(d=>staffData[d]||'').join(',')}\n`;
+        });
+        return csv;
+    }
+
+    function downloadMoveReport() {
+        if (!balancedResults) return;
+        let allMoves = [];
+        if (balancedResults.day) allMoves = allMoves.concat(balancedResults.day.moveList.map(m=>({...m,shiftType:'Day'})));
+        if (balancedResults.night) allMoves = allMoves.concat(balancedResults.night.moveList.map(m=>({...m,shiftType:'Night'})));
+        let csv = 'Name,Date,Shift Type,Shift Code,Staff Type,Job,Skills,Reason\n';
+        allMoves.forEach(move => { csv += `${move.name},${move.date},${move.shiftType},${move.shift},${move.type},${move.job},"${move.skill||''}",${move.reason}\n`; });
+        downloadFile(csv, 'cvicu_move_report_v28.csv', 'text/csv');
+    }
+
+    function downloadFile(content, filename, type) {
+        if (!content || content.length === 0) { alert('Cannot download: empty content'); return; }
+        const blob = new Blob([content], { type });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+</script>
+</body>
+</html>
