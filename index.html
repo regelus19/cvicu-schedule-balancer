@@ -2218,7 +2218,7 @@
             if (balancedResults.day)   addDayShiftSheet(wb, balancedResults.day);
             if (balancedResults.night) addNightShiftSheet(wb, balancedResults.night);
             addOriginalMyTimeSheet(wb);
-            XLSX.writeFile(wb, 'CVICU_Balanced_Schedule_v30.xlsx');
+            XLSX.writeFile(wb, 'CVICU_Balanced_Schedule_v30.xlsx', {cellStyles: true});
         } catch (error) { alert('Download failed: ' + error.message); }
     }
 
@@ -2332,7 +2332,7 @@
         if (rns.length>0)   { data.push(['=== RNs ===']); rns.forEach(staff => { const sd=simulation[staff.name]; data.push([staff.name,staff.job,staff.type,staff.skill,...dates.map(d=>sd[d]||'')]); }); data.push([]); }
         if (pcts.length>0)  { data.push(['=== PCTs ===']); pcts.forEach(staff => { const sd=simulation[staff.name]; data.push([staff.name,staff.job,staff.type,staff.skill,...dates.map(d=>sd[d]||'')]); }); }
 
-        // ── COVERAGE SUMMARY at the bottom (matches Rowena's format) ──
+        // ── COVERAGE SUMMARY at the bottom with color coding ──
         const cov = dates.map(date => {
             let rn=0,pct=0,chg=0,eb=0,es=0;
             staffRoster.forEach(s => {
@@ -2364,7 +2364,34 @@
         data.push(['ECMO Specialist (ES)',  requirements.ES,     '', ...cov.map(c=>c.es)]);
         data.push(['ES +/-',                '',                  '', ...cov.map(c=>c.es-requirements.ES)]);
 
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), sheetName);
+        const ws = XLSX.utils.aoa_to_sheet(data);
+
+        // Color code the tally rows: green=at par/over min, blue=over cap, red=negative
+        // Find which rows in `data` are the +/- net rows
+        const totalRows = data.length;
+        const netRowLabels = ['RN +/-','PCT +/-','Charge +/-','EB +/-','ES +/-'];
+        data.forEach((row, rowIdx) => {
+            const label = row[0];
+            if (!netRowLabels.includes(label)) return;
+            const isRNRow = label === 'RN +/-';
+            dates.forEach((date, dateIdx) => {
+                const col = dateIdx + 3; // offset: label, min, blank
+                const cellAddr = XLSX.utils.encode_cell({r: rowIdx, c: col});
+                const val = row[col];
+                if (typeof val !== 'number') return;
+                let rgb;
+                if (val < 0)       rgb = 'FFFF0000'; // red — negative/gap
+                else if (isRNRow && val > 4) rgb = 'FF4472C4'; // blue — over cap
+                else if (val === 0) rgb = 'FF92D050'; // green — exactly at par
+                else                rgb = 'FF92D050'; // green — at or above min
+                ws[cellAddr] = {
+                    v: val, t: 'n',
+                    s: { fill: { patternType: 'solid', fgColor: { rgb } }, font: { bold: true, color: { rgb: 'FFFFFFFF' } } }
+                };
+            });
+        });
+
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
     }
     function addDayShiftSheet(wb, result) { addShiftSheet(wb, result, 'Day Shift', 'DAY SHIFT'); }
     function addNightShiftSheet(wb, result) { addShiftSheet(wb, result, 'Night Shift', 'NIGHT SHIFT'); }
