@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CVICU Schedule Balancer v30</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -744,7 +745,7 @@
         <div id="resultsContent"></div>
         <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;">
             <button class="btn btn-secondary" onclick="downloadExcel()">📥 Download Excel</button>
-            <button class="btn btn-secondary" onclick="downloadCSV()">📥 Download CSV</button>
+            <button class="btn btn-secondary" onclick="downloadColoredTally()" style="background:#1F3864;">🎨 Download Colored Tally</button>
             <button class="btn btn-secondary" onclick="downloadMoveReport()">📋 Download Move Report</button>
         </div>
     </div>
@@ -2218,8 +2219,91 @@
             if (balancedResults.day)   addDayShiftSheet(wb, balancedResults.day);
             if (balancedResults.night) addNightShiftSheet(wb, balancedResults.night);
             addOriginalMyTimeSheet(wb);
-            XLSX.writeFile(wb, 'CVICU_Balanced_Schedule_v30.xlsx', {cellStyles: true});
+            // Use writeFile with bookType xlsx — colors handled via separate colored tally download
+            XLSX.writeFile(wb, 'CVICU_Balanced_Schedule_v30.xlsx');
         } catch (error) { alert('Download failed: ' + error.message); }
+    }
+
+    // Generates a standalone colored tally HTML file the user can open in Excel
+    function downloadColoredTally() {
+        if (!balancedResults || !rawData) { alert('⚠️ Run balancing first.'); return; }
+
+        const makeTable = (label, result, counting, isDay) => {
+            const { simulation, dates } = result;
+            const cov = dates.map(date => {
+                let rn=0,pct=0,chg=0,eb=0,es=0;
+                staffRoster.forEach(s => {
+                    if (EXCLUDED_STAFF.includes(s.name)) return;
+                    const sh = simulation[s.name] ? simulation[s.name][date] : '';
+                    if (!counting.includes(sh)) return;
+                    if (s.job?.includes('RN')) { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
+                    if (s.job?.includes('PCT')) pct++;
+                });
+                const dow = parseDate(date).getDay();
+                const isWE = isDay ? (dow===0||dow===6) : (dow===5||dow===6||dow===0);
+                return {
+                    rn, pct, chg, eb, es,
+                    rnMin:  isWE ? requirements.RN_WE  : requirements.RN_WD,
+                    pctMin: isWE ? requirements.PCT_WE : requirements.PCT_WD,
+                    dow: parseDate(date).toLocaleDateString('en-US',{weekday:'short'})
+                };
+            });
+
+            const cell = (val, isNet=false, isRN=false) => {
+                let bg = '', color = '#000';
+                if (isNet) {
+                    if (val < 0)               { bg='#FF0000'; color='#fff'; }      // red — gap
+                    else if (isRN && val > 4)   { bg='#4472C4'; color='#fff'; }     // blue — over cap
+                    else if (val === 0)         { bg='#92D050'; color='#fff'; }     // green — exact
+                    else                        { bg='#92D050'; color='#fff'; }     // green — above min
+                }
+                const style = bg ? `style="background:${bg};color:${color};font-weight:bold;text-align:center;padding:3px 6px;"` : `style="text-align:center;padding:3px 6px;"`;
+                return `<td ${style}>${val >= 0 && isNet ? '+'+val : val}</td>`;
+            };
+
+            const hdr = `<tr style="background:#1F3864;color:white;font-weight:bold;">
+                <td style="padding:3px 8px;">Metric</td><td style="padding:3px 6px;">Min</td>
+                ${dates.map((d,i) => `<td style="padding:2px 4px;font-size:11px;">${cov[i].dow}<br>${d}</td>`).join('')}
+            </tr>`;
+
+            const rows = [
+                ['RN Count',    requirements.RN_WD,  cov.map(c=>c.rn),  false, false],
+                ['RN +/-',      '',                  cov.map(c=>c.rn-c.rnMin),  true, true],
+                ['PCT Count',   requirements.PCT_WD, cov.map(c=>c.pct), false, false],
+                ['PCT +/-',     '',                  cov.map(c=>c.pct-c.pctMin), true, false],
+                ['Charge RN',   requirements.CN,     cov.map(c=>c.chg), false, false],
+                ['Charge +/-',  '',                  cov.map(c=>c.chg-requirements.CN), true, false],
+                ['EB Count',    requirements.EB,     cov.map(c=>c.eb),  false, false],
+                ['EB +/-',      '',                  cov.map(c=>c.eb-requirements.EB), true, false],
+                ['ES Count',    requirements.ES,     cov.map(c=>c.es),  false, false],
+                ['ES +/-',      '',                  cov.map(c=>c.es-requirements.ES), true, false],
+            ].map(([lbl, min, vals, isNet, isRN]) =>
+                `<tr><td style="font-weight:600;padding:3px 8px;white-space:nowrap;">${lbl}</td>
+                <td style="text-align:center;padding:3px 6px;">${min}</td>
+                ${vals.map(v => cell(v, isNet, isRN)).join('')}</tr>`
+            ).join('');
+
+            return `<h3 style="margin:20px 0 6px;color:#1F3864;">${label}</h3>
+            <table border="1" cellspacing="0" style="border-collapse:collapse;font-size:12px;font-family:Calibri,Arial;">${hdr}${rows}</table>`;
+        };
+
+        let html = `<html><head><meta charset="UTF-8">
+        <title>CVICU Coverage Tally</title></head><body style="font-family:Calibri,Arial;padding:20px;">
+        <h2 style="color:#1F3864;">🏥 CVICU Coverage Tally — Color Coded</h2>
+        <p style="color:#666;font-size:12px;">🟢 Green = at/above minimum &nbsp;|&nbsp; 🔵 Blue = over cap (&gt;+4) &nbsp;|&nbsp; 🔴 Red = below minimum (gap)</p>`;
+
+        if (balancedResults.day)
+            html += makeTable('☀️ DAY SHIFT COVERAGE', balancedResults.day, ['7A','MID'], true);
+        if (balancedResults.night)
+            html += makeTable('🌙 NIGHT SHIFT COVERAGE', balancedResults.night, ['7P'], false);
+
+        html += '</body></html>';
+
+        const blob = new Blob([html], {type:'application/vnd.ms-excel;charset=utf-8'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'CVICU_Coverage_Tally_Colored.xls'; a.click();
+        URL.revokeObjectURL(url);
     }
 
     function addDayCoverageSummarySheet(wb) {
