@@ -1063,7 +1063,9 @@
                 const upper = String(value).toUpperCase().trim();
                 if (upper === '7A' || upper === '7P' || upper === 'MID') return upper;
                 if (upper.includes('6T19') || upper === '6T19Q' || upper === '6119') return '7A';
+                if (upper.includes('6W18') || upper === '6W18H') return '7A';  // HUC day shift code
                 if (upper.includes('18T7') || upper === '18T7Q' || upper === '1817') return '7P';
+                if (upper.includes('18W6') || upper === '18W6H') return '7P';  // HUC night shift code
                 if (upper.includes('10W2') || upper === '10W2Q') return 'MID';
                 // FIX v28: PAYRO is a PAYROLL ADJUSTMENT CODE, NOT a PTO request.
                 // It will block scheduling (handled in canAdd) but shows as PAYRO in output.
@@ -1612,7 +1614,7 @@
                         if (type==='CN')  return s.skill?.includes('CN');
                         if (type==='EB')  return s.skill?.includes('EB');
                         if (type==='ES')  return s.skill?.includes('ES');
-                        if (type==='PCT') return s.job==='PCT';
+                        if (type==='PCT') return s.job==='PCT' || s.job==='HUC';
                         return s.job==='RN';
                     })
                     .map(s => ({ ...s, priority: getPriorityCategory(s, simulation, null) }))
@@ -1766,7 +1768,7 @@
                         if (type==='CN')  return s.skill?.includes('CN');
                         if (type==='EB')  return s.skill?.includes('EB');
                         if (type==='ES')  return s.skill?.includes('ES');
-                        if (type==='PCT') return s.job==='PCT';
+                        if (type==='PCT') return s.job==='PCT' || s.job==='HUC';
                         return s.job==='RN';
                     })
                     .map(s => ({ ...s, priority: getPriorityCategory(s, simulation, null) }))
@@ -1843,14 +1845,14 @@
             let code = '';
             const upper = String(raw).toUpperCase();
             if (mode === 'day') {
-                if (upper.includes('6T19')||upper.includes('7A')) code = '7A';
+                if (upper.includes('6T19')||upper.includes('7A')||upper.includes('6W18')) code = '7A';
                 else if (upper.includes('10W2')||upper==='10A'||upper==='MID') code = 'MID'; // normalise to MID
                 else if (upper.includes('R/O')||upper==='RO') code = 'R/O';
                 else if (upper.includes('PTO')||upper.includes('VAC')) code = 'PTO';
                 else if (upper==='PAYRO'||upper.startsWith('PAYRO')) code = 'PAYRO';
                 else if (upper==='ADMIN') code = 'ADMIN';
             } else {
-                if (upper.includes('18T7')||upper==='7P') code = '7P';
+                if (upper.includes('18T7')||upper==='7P'||upper.includes('18W6')) code = '7P';
                 else if (upper.includes('R/O')||upper==='RO') code = 'R/O';
                 else if (upper.includes('PTO')||upper.includes('VAC')) code = 'PTO';
                 else if (upper==='PAYRO'||upper.startsWith('PAYRO')) code = 'PAYRO';
@@ -1875,7 +1877,7 @@
             const counts = countingCodes.includes(shift) || (isDay && shift === 'MID');
             if (!counts) return;
             if (staff.job==='RN') { rn++; if (staff.skill?.includes('CN')) chg++; if (staff.skill?.includes('EB')) eb++; if (staff.skill?.includes('ES')) es++; }
-            else if (staff.job==='PCT') { pct++; }
+            else if (staff.job==='PCT' || staff.job==='HUC') { pct++; }
         });
         const rnMin  = getRnMin(date);
         const pctMin = getPctMin(date);
@@ -1908,7 +1910,7 @@
         if (EXCLUDED_STAFF.includes(staff.name)) return false;  // excluded from balancing but visible in roster
         if (protectedStaff.includes(staff.name)) return false;
         // Day balancing: allow AM AND MIDSHIFT staff (MID counts toward day coverage)
-        if (balancingMode==='day'  && staff.shift!=='AM' && staff.shift!=='MIDSHIFT') return false;
+        if (balancingMode==='day'  && staff.shift!=='AM' && staff.shift!=='MIDSHIFT') return false;  // HUC with AM shift passes
         if (balancingMode==='night' && staff.shift!=='PM') return false;
         const staffShiftType = detectShiftType(simulation[staff.name]);
         if (staffShiftType!=='unassigned' && staffShiftType!==balancingMode) return false;
@@ -2251,7 +2253,7 @@
                 const sh = sim[s.name] ? sim[s.name][date] : '';
                 if (!counting.includes(sh)) return;
                 if (s.job==='RN') { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
-                if (s.job==='PCT') pct++;
+                if (s.job==='PCT' || s.job==='HUC') pct++;
             });
             const dow = parseDate(date).getDay();
             const isWE = isDay ? (dow===0||dow===6) : (dow===5||dow===6||dow===0);
@@ -2363,20 +2365,20 @@
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pctData), 'PCT');
 
 
-            // ── HUC sheet (all HUCs — both AM and PM) ──
+            // ── HUC sheet (all HUCs — both AM and PM, using simulation) ──
             const allHUCs = staffRoster.filter(s => s.job === 'HUC' && !EXCLUDED_STAFF.includes(s.name));
             const dayHucData = [
-                ['Employee', ...dates.map(fmtDow)],
-                ['',         ...dates.map(fmtDate)],
+                ['Employee', 'Type', 'Shift', ...dates.map(fmtDow)],
+                ['', '', '',                  ...dates.map(fmtDate)],
                 ...allHUCs.map(s => {
                     const sd = sim[s.name] || {};
-                    return [s.name, ...dates.map(d => sd[d] || '')];
+                    return [s.name, s.type, s.shift, ...dates.map(d => sd[d] || '')];
                 }),
-                ["TOTAL AM HUC's", ...dates.map(d =>
-                    allHUCs.filter(s => (sim[s.name]?.[d] || '').toUpperCase() === '7A').length || ''
+                ["TOTAL AM HUC's", '', '', ...dates.map(d =>
+                    allHUCs.filter(s => ['7A','MID'].includes(sim[s.name]?.[d])).length || ''
                 )],
-                ["TOTAL PM HUC's", ...dates.map(d =>
-                    allHUCs.filter(s => (sim[s.name]?.[d] || '').toUpperCase() === '7P').length || ''
+                ["TOTAL PM HUC's", '', '', ...dates.map(d =>
+                    allHUCs.filter(s => sim[s.name]?.[d] === '7P').length || ''
                 )],
             ];
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dayHucData), 'HUC');
@@ -2465,17 +2467,17 @@
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pctData), 'PCT');
 
 
-            // ── HUC sheet (PM HUCs only) ──
+            // ── HUC sheet (PM HUCs only, using simulation) ──
             const nightHUCs = staffRoster.filter(s => s.job === 'HUC' && s.shift === 'PM' && !EXCLUDED_STAFF.includes(s.name));
             const nightHucData = [
                 ['Employee', 'Job', 'Status', 'Role', ...dates.map(fmtDow)],
                 ['', '', '', '',                       ...dates.map(fmtDate)],
                 ...nightHUCs.map(s => {
                     const sd = sim[s.name] || {};
-                    return [s.name, s.job, s.type, '', ...dates.map(d => sd[d] || '')];
+                    return [s.name, 'US', s.type, '', ...dates.map(d => sd[d] || '')];
                 }),
                 ['Total HUC (Minimum)', '', '', '', ...dates.map(d =>
-                    nightHUCs.filter(s => (sim[s.name]?.[d] || '').toUpperCase() === '7P').length || ''
+                    nightHUCs.filter(s => sim[s.name]?.[d] === '7P').length || ''
                 )],
             ];
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(nightHucData), 'HUC');
@@ -2497,7 +2499,7 @@
                         const sh = simulation[s.name] ? simulation[s.name][date] : '';
                         if (!counting.includes(sh)) return;
                         if (s.job?.includes('RN')) { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
-                        if (s.job?.includes('PCT')) pct++;
+                        if (s.job?.includes('PCT') || s.job==='HUC') pct++;
                     });
                     const dow = parseDate(date).getDay();
                     const isWE = isDay ? (dow===0||dow===6) : (dow===5||dow===6||dow===0);
@@ -2584,7 +2586,7 @@
                 const sh = simulation[s.name] ? simulation[s.name][date] : '';
                 if (!COUNTING_DAY.includes(sh)) return;
                 if (s.job?.includes('RN')) { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
-                if (s.job?.includes('PCT')) pct++;
+                if (s.job?.includes('PCT') || s.job==='HUC') pct++;
             });
             const rnMin=getRnMin(date), pctMin=getPctMin(date);
             return {date,rn,pct,chg,eb,es,rnMin,pctMin};
@@ -2691,7 +2693,7 @@
                 const sh = simulation[s.name] ? simulation[s.name][date] : '';
                 if (!COUNTING.includes(sh)) return;
                 if (s.job?.includes('RN')) { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
-                if (s.job?.includes('PCT')) pct++;
+                if (s.job?.includes('PCT') || s.job==='HUC') pct++;
             });
             const dow = parseDate(date).getDay();
             const isWE = isDay ? (dow===0||dow===6) : (dow===5||dow===6||dow===0);
