@@ -753,10 +753,12 @@
     <div class="card hidden" id="resultsSection">
         <div class="card-title">📊 Results &amp; Download</div>
         <div id="resultsContent"></div>
+        <div id="scoreCardContent" style="margin-top:16px;"></div>
         <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;">
             <button class="btn btn-secondary" onclick="downloadDaySchedule()">☀️ Download Day Schedule</button>
             <button class="btn btn-secondary" onclick="downloadNightSchedule()">🌙 Download Night Schedule</button>
-            <button class="btn btn-secondary" onclick="downloadColoredTally()" style="background:#1F3864;">🎨 Download Colored Tally</button>
+            <button class="btn btn-secondary" onclick="downloadColoredSchedule()" style="background:#c05621;">🎨 Download Colored Schedule</button>
+            <button class="btn btn-secondary" onclick="downloadColoredTally()" style="background:#1F3864;">📊 Download Colored Tally</button>
             <button class="btn btn-secondary" onclick="downloadMoveReport()">📋 Download Move Report</button>
         </div>
     </div>
@@ -1961,8 +1963,7 @@
         const current = simulation[staff.name][date];
         if (countingCodes.includes(current)) return false;
         // Block scheduling on any non-working or protected day
-        // Per code reference: SICK, LOA added; PAYRO added v28; ADMIN added v28b
-        if (['R/O','PTO','HOL','FMLA','LOA','PAYRO','SICK','ADMIN'].includes(current)) return false;
+        if (['R/O','PTO','HOL','FMLA','LOA','PAYRO','SICK','ADMIN','EDU'].includes(current)) return false;
         // Filter to date keys only — use parseDate validity (handles '4/19/ 2026' and '4/19/2026')
         const allDates = Object.keys(simulation[staff.name])
             .filter(k => { try { const d = parseDate(k); return !isNaN(d.getTime()) && d.getFullYear() > 2000; } catch(e) { return false; } })
@@ -1979,9 +1980,6 @@
         for (let i=weekStart; i<weekEnd; i++) {
             const sv = simulation[staff.name][allDates[i]];
             if (countingCodes.includes(sv)) weekShiftCount++;
-            // Per code reference: PTO, FMLA, LOA count toward weekly shift requirement
-            // SICK does NOT count (sick time ≠ approved leave for scheduling purposes)
-            // ADMIN counts (ANM office/admin shift fulfills their weekly obligation)
             if (sv==='PTO'||sv==='VAC'||sv==='FMLA'||sv==='LOA'||sv==='ADMIN') weekPTOCount++;
         }
         if (staff.type==='FT') { if (weekPTOCount>=3) return false; if (weekShiftCount+weekPTOCount>=3) return false; }
@@ -1994,6 +1992,30 @@
         for (let i=0; i<allDates.length; i++) { if (countingCodes.includes(simulation[staff.name][allDates[i]])) totalShifts++; }
         if (staff.type==='FT' && totalShifts>=21) return false;
         if (staff.type==='PT' && totalShifts>=15) return false;
+
+        // ── WEEKEND CAP: prevent over-assigning weekends to one nurse ──────────
+        // Day: FT=5 weekends, PT=4 | Night: FT=7 weekend shifts, PT=5
+        const dow = parseDate(date).getDay();
+        const dateIsWE = balancingMode === 'day'
+            ? (dow === 0 || dow === 6)
+            : (dow === 5 || dow === 6 || dow === 0);
+        if (dateIsWE) {
+            const weCap = staff.type === 'FT' ? (balancingMode === 'day' ? 5 : 7)
+                        : staff.type === 'PT' ? (balancingMode === 'day' ? 4 : 5)
+                        : 99; // PRN no cap
+            let weCount = 0;
+            for (let i = 0; i < allDates.length; i++) {
+                const d = allDates[i];
+                const dDow = parseDate(d).getDay();
+                const dIsWE = balancingMode === 'day'
+                    ? (dDow === 0 || dDow === 6)
+                    : (dDow === 5 || dDow === 6 || dDow === 0);
+                if (dIsWE && (countingCodes.includes(simulation[staff.name][d]) || simulation[staff.name][d] === 'MID'))
+                    weCount++;
+            }
+            if (weCount >= weCap) return false;
+        }
+
         return true;
     }
 
@@ -2107,6 +2129,7 @@
         if (balancedResults.day) html += generateResultHTML('Day Shift', balancedResults.day, ['7A','10A','12P']);
         if (balancedResults.night) html += generateResultHTML('Night Shift', balancedResults.night, ['7P']);
         content.innerHTML = html;
+        displayScoreCard();
         displayMoveTracker();
         document.getElementById('moveTrackerSection').classList.remove('hidden');
         displayWeekendRequirements();
@@ -2535,7 +2558,260 @@
         } catch(e) { alert('Night schedule download failed: ' + e.message); }
     }
 
-    function downloadColoredTally() {
+    // ─── SCORE CARD ─────────────────────────────────────────────────────────
+    function computeScoreCard() {
+        const scores = {};
+        ['day','night'].forEach(shift => {
+            if (!balancedResults?.[shift]) return;
+            const { simulation, dates } = balancedResults[shift];
+            const counting = shift === 'day' ? ['7A','MID'] : ['7P'];
+            const isDay = shift === 'day';
+
+            let daysMetRN=0, daysOverCap=0, daysMetPCT=0, daysMetMID=0;
+            let totalMoves=0, totalAdded=0;
+            let weOverCount=0, weUnderCount=0, weOkCount=0;
+
+            dates.forEach(date => {
+                let rn=0,pct=0,mid=0;
+                staffRoster.forEach(s => {
+                    if (EXCLUDED_STAFF.includes(s.name)) return;
+                    const sh = simulation[s.name]?.[date] || '';
+                    if (!counting.includes(sh) && !(isDay && sh==='MID')) return;
+                    if (s.job==='RN') rn++;
+                    if (s.job==='PCT'||s.job==='HUC') pct++;
+                    if (sh==='MID') mid++;
+                });
+                const dow = parseDate(date).getDay();
+                const isWE = isDay ? (dow===0||dow===6) : (dow===5||dow===6||dow===0);
+                const rnMin = isWE ? requirements.RN_WE : requirements.RN_WD;
+                const rnMax = getRnMax(date);
+                const pctMin = isWE ? requirements.PCT_WE : requirements.PCT_WD;
+                const midMin = isWE ? requirements.MID_WE : requirements.MID_WD;
+                if (rn >= rnMin) daysMetRN++;
+                if (rn > rnMax) daysOverCap++;
+                if (pct >= pctMin) daysMetPCT++;
+                if (!isDay || mid >= midMin) daysMetMID++;
+            });
+
+            // Weekend balance
+            staffRoster.filter(s => !ANM_STAFF.includes(s.name) && !EXCLUDED_STAFF.includes(s.name)
+                && s.shift === (isDay?'AM':'PM') && s.type==='FT' && s.job==='RN').forEach(s => {
+                let we=0;
+                dates.forEach(d => {
+                    const dow = parseDate(d).getDay();
+                    const dIsWE = isDay?(dow===0||dow===6):[5,6,0].includes(dow);
+                    const sh = simulation[s.name]?.[d] || '';
+                    if (dIsWE && (counting.includes(sh)||sh==='MID')) we++;
+                });
+                const cap = isDay ? 5 : 7;
+                if (we > cap) weOverCount++;
+                else if (we < (isDay?3:5)) weUnderCount++;
+                else weOkCount++;
+            });
+
+            // Moves
+            (balancedResults[shift].moveList||[]).forEach(m => {
+                if (m.reason?.includes('Enforce')) totalAdded++;
+                else totalMoves++;
+            });
+
+            scores[shift] = {
+                daysMetRN, daysOverCap, daysMetPCT, daysMetMID,
+                totalDays: dates.length,
+                weOverCount, weUnderCount, weOkCount,
+                totalMoves, totalAdded
+            };
+        });
+        return scores;
+    }
+
+    function displayScoreCard() {
+        const scores = computeScoreCard();
+        const div = document.getElementById('scoreCardContent');
+        if (!div || Object.keys(scores).length === 0) return;
+
+        const grade = (num, den, invert=false) => {
+            const pct = invert ? (1 - num/den)*100 : (num/den)*100;
+            if (pct >= 95) return {g:'A',c:'#22543d',bg:'#c6f6d5'};
+            if (pct >= 85) return {g:'B',c:'#1a365d',bg:'#bee3f8'};
+            if (pct >= 70) return {g:'C',c:'#744210',bg:'#fef3c7'};
+            return {g:'D',c:'#742a2a',bg:'#fed7d7'};
+        };
+
+        let html = `<div style="background:#1a365d;color:white;border-radius:8px;padding:16px;margin-bottom:12px;">
+            <div style="font-weight:700;font-size:16px;margin-bottom:4px;">📊 Balancing Score Card</div>
+            <div style="font-size:12px;color:#90cdf4;">How well the tool balanced this schedule vs manual</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;">`;
+
+        ['day','night'].forEach(shift => {
+            const s = scores[shift];
+            if (!s) return;
+            const label = shift === 'day' ? '☀️ Day Shift' : '🌙 Night Shift';
+            const rnGrade  = grade(s.daysMetRN,  s.totalDays);
+            const capGrade = grade(s.daysOverCap, s.totalDays, true);
+            const pctGrade = grade(s.daysMetPCT, s.totalDays);
+            const weGrade  = grade(s.weOkCount,  s.weOkCount+s.weOverCount+s.weUnderCount);
+            const midGrade = grade(s.daysMetMID, s.totalDays);
+
+            html += `<div style="background:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;">
+                <div style="font-weight:700;font-size:15px;margin-bottom:12px;">${label}</div>
+                <table style="width:100%;font-size:13px;border-collapse:collapse;">
+                <tr style="border-bottom:1px solid #e2e8f0;">
+                    <td style="padding:6px 4px;">RN Coverage Days Met</td>
+                    <td style="text-align:right;padding:6px 4px;">${s.daysMetRN}/${s.totalDays}</td>
+                    <td style="text-align:right;padding:4px;"><span style="background:${rnGrade.bg};color:${rnGrade.c};padding:2px 8px;border-radius:4px;font-weight:700;">${rnGrade.g}</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid #e2e8f0;">
+                    <td style="padding:6px 4px;">Over-Cap Days</td>
+                    <td style="text-align:right;padding:6px 4px;">${s.daysOverCap}/${s.totalDays}</td>
+                    <td style="text-align:right;padding:4px;"><span style="background:${capGrade.bg};color:${capGrade.c};padding:2px 8px;border-radius:4px;font-weight:700;">${capGrade.g}</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid #e2e8f0;">
+                    <td style="padding:6px 4px;">PCT/HUC Coverage Met</td>
+                    <td style="text-align:right;padding:6px 4px;">${s.daysMetPCT}/${s.totalDays}</td>
+                    <td style="text-align:right;padding:4px;"><span style="background:${pctGrade.bg};color:${pctGrade.c};padding:2px 8px;border-radius:4px;font-weight:700;">${pctGrade.g}</span></td>
+                </tr>
+                ${shift==='day'?`<tr style="border-bottom:1px solid #e2e8f0;">
+                    <td style="padding:6px 4px;">MID Coverage Met</td>
+                    <td style="text-align:right;padding:6px 4px;">${s.daysMetMID}/${s.totalDays}</td>
+                    <td style="text-align:right;padding:4px;"><span style="background:${midGrade.bg};color:${midGrade.c};padding:2px 8px;border-radius:4px;font-weight:700;">${midGrade.g}</span></td>
+                </tr>`:''}
+                <tr style="border-bottom:1px solid #e2e8f0;">
+                    <td style="padding:6px 4px;">Weekend Balance (FT RNs)</td>
+                    <td style="text-align:right;padding:6px 4px;">✅${s.weOkCount} ⬆️${s.weOverCount} ⬇️${s.weUnderCount}</td>
+                    <td style="text-align:right;padding:4px;"><span style="background:${weGrade.bg};color:${weGrade.c};padding:2px 8px;border-radius:4px;font-weight:700;">${weGrade.g}</span></td>
+                </tr>
+                <tr>
+                    <td style="padding:6px 4px;">Shifts Added / Moved</td>
+                    <td style="text-align:right;padding:6px 4px;color:#22543d;">+${s.totalAdded} added</td>
+                    <td style="text-align:right;padding:4px;color:#742a2a;">${s.totalMoves} moved</td>
+                </tr>
+                </table>
+            </div>`;
+        });
+        html += '</div>';
+        div.innerHTML = html;
+    }
+
+    // ─── COLORED SCHEDULE DOWNLOAD (HTML→Excel with pink/purple/teal/red) ───
+    function downloadColoredSchedule() {
+        if (!balancedResults || !rawData) { alert('⚠️ Run balancing first.'); return; }
+
+        const addedDates = {}; // track which staff+date combos were added/moved by balancer
+        ['day','night'].forEach(shift => {
+            if (!balancedResults[shift]) return;
+            (balancedResults[shift].moveList||[]).forEach(m => {
+                addedDates[m.name + '|' + m.date] = true;
+            });
+        });
+
+        const cellStyle = (val, name, date, isANM) => {
+            const v = String(val||'').toUpperCase().trim();
+            let bg = '';
+            if (v === 'R/O' || v === 'RO' || v.startsWith('R ')) bg = '#7B2D8B'; // purple
+            else if (v === 'PTO' || v === 'VAC') bg = '#0097A7'; // teal
+            else if (v === 'ADMIN' || v === 'PAYRO') bg = '#C62828'; // red
+            else if (addedDates[name + '|' + date]) bg = '#E91E8C'; // pink = moved/added
+            const color = bg ? 'white' : '#2d3748';
+            const fw = bg ? 'bold' : 'normal';
+            return bg
+                ? `style="background:${bg};color:${color};font-weight:${fw};text-align:center;padding:3px 4px;border:1px solid #ddd;font-size:11px;"`
+                : `style="text-align:center;padding:3px 4px;border:1px solid #ddd;font-size:11px;"`;
+        };
+
+        const makeSheet = (shiftLabel, result, counting, isDay) => {
+            if (!result) return '';
+            const { simulation, dates } = result;
+            const fmtD = d => { const dt = parseDate(d); return `${dt.getMonth()+1}/${String(dt.getDate()).padStart(2,'0')}<br>${dt.getFullYear()}`; };
+            const fmtDow = d => parseDate(d).toLocaleDateString('en-US',{weekday:'short'});
+
+            const hdrBg = isDay ? '#1a365d' : '#2d3748';
+            let html = `<h2 style="color:${hdrBg};margin:16px 0 8px;">${shiftLabel}</h2>
+            <p style="font-size:11px;color:#666;margin-bottom:8px;">
+                🟣 R/O &nbsp;|&nbsp; 🟦 PTO &nbsp;|&nbsp; 🔴 ADMIN &nbsp;|&nbsp; 🩷 Added/Moved by balancer
+            </p>
+            <table cellspacing="0" style="border-collapse:collapse;font-size:11px;font-family:Calibri,Arial;">
+            <tr style="background:${hdrBg};color:white;font-weight:bold;">
+                <td style="padding:4px 8px;border:1px solid #aaa;min-width:130px;">Employee</td>
+                <td style="padding:4px 6px;border:1px solid #aaa;">Job</td>
+                <td style="padding:4px 6px;border:1px solid #aaa;">Type</td>
+                <td style="padding:4px 6px;border:1px solid #aaa;">Skills</td>
+                ${dates.map(d=>`<td style="padding:2px 3px;border:1px solid #aaa;text-align:center;font-size:10px;min-width:32px;">${fmtDow(d)}<br>${fmtD(d)}</td>`).join('')}
+                <td style="padding:4px 6px;border:1px solid #aaa;">WE</td>
+                <td style="padding:4px 6px;border:1px solid #aaa;">${isDay?'7A':'7P'}</td>
+                <td style="padding:4px 6px;border:1px solid #aaa;">Total</td>
+            </tr>`;
+
+            const groups = isDay ? [
+                { label: 'ANMs', staff: staffRoster.filter(s=>ANM_STAFF.includes(s.name)&&s.shift!=='PM') },
+                { label: 'EB/CHG RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='AM'&&s.job==='RN'&&s.skill?.includes('EB')&&s.skill?.includes('CN')) },
+                { label: 'ES/CHG RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='AM'&&s.job==='RN'&&s.skill?.includes('ES')&&s.skill?.includes('CN')) },
+                { label: 'ES RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='AM'&&s.job==='RN'&&s.skill?.includes('ES')&&!s.skill?.includes('CN')) },
+                { label: 'EB RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='AM'&&s.job==='RN'&&s.skill?.includes('EB')&&!s.skill?.includes('CN')) },
+                { label: 'RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='AM'&&s.job==='RN'&&!s.skill?.includes('EB')&&!s.skill?.includes('ES')&&!s.skill?.includes('CN')) },
+                { label: 'MID Shift', staff: staffRoster.filter(s=>s.shift==='MIDSHIFT'&&!EXCLUDED_STAFF.includes(s.name)) },
+                { label: 'PCTs/HUCs', staff: staffRoster.filter(s=>(s.job==='PCT'||s.job==='HUC')&&s.shift==='AM'&&!EXCLUDED_STAFF.includes(s.name)) },
+            ] : [
+                { label: 'ANMs', staff: staffRoster.filter(s=>ANM_STAFF.includes(s.name)&&s.shift==='PM') },
+                { label: 'ES/CHG RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='PM'&&s.job==='RN'&&s.skill?.includes('ES')&&s.skill?.includes('CN')) },
+                { label: 'EB/CHG RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='PM'&&s.job==='RN'&&s.skill?.includes('EB')&&s.skill?.includes('CN')) },
+                { label: 'ES RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='PM'&&s.job==='RN'&&s.skill?.includes('ES')&&!s.skill?.includes('CN')) },
+                { label: 'EB RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='PM'&&s.job==='RN'&&s.skill?.includes('EB')&&!s.skill?.includes('CN')) },
+                { label: 'RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='PM'&&s.job==='RN'&&!s.skill?.includes('EB')&&!s.skill?.includes('ES')&&!s.skill?.includes('CN')) },
+                { label: 'PCTs/HUCs', staff: staffRoster.filter(s=>(s.job==='PCT'||s.job==='HUC')&&s.shift==='PM'&&!EXCLUDED_STAFF.includes(s.name)) },
+            ];
+
+            groups.forEach(grp => {
+                if (!grp.staff.length) return;
+                html += `<tr><td colspan="${dates.length+7}" style="background:#edf2f7;font-weight:700;font-size:11px;padding:4px 8px;border:1px solid #ddd;">— ${grp.label} —</td></tr>`;
+                grp.staff.forEach(s => {
+                    const sd = simulation[s.name] || {};
+                    const isANM = ANM_STAFF.includes(s.name);
+                    let we=0, worked=0;
+                    const cells = dates.map(d => {
+                        const v = sd[d] || '';
+                        const dow = parseDate(d).getDay();
+                        const dIsWE = isDay?(dow===0||dow===6):[5,6,0].includes(dow);
+                        if (counting.includes(v)||v==='MID') { worked++; if(dIsWE) we++; }
+                        return `<td ${cellStyle(v, s.name, d, isANM)}>${v}</td>`;
+                    }).join('');
+                    const skillDisp = [s.skill?.includes('ES')?'ES':'',s.skill?.includes('EB')?'EB':'',s.skill?.includes('CN')?'CHG':''].filter(Boolean).join('/');
+                    html += `<tr>
+                        <td style="padding:3px 6px;border:1px solid #ddd;white-space:nowrap;font-size:11px;${isANM?'background:#fff9e6;font-weight:bold;':''}">${s.name}</td>
+                        <td style="padding:3px 4px;border:1px solid #ddd;font-size:11px;">${isANM?'AMGR':s.job}</td>
+                        <td style="padding:3px 4px;border:1px solid #ddd;font-size:11px;">${s.type}</td>
+                        <td style="padding:3px 4px;border:1px solid #ddd;font-size:11px;">${skillDisp}</td>
+                        ${cells}
+                        <td style="padding:3px 4px;border:1px solid #ddd;text-align:center;font-size:11px;">${we}</td>
+                        <td style="padding:3px 4px;border:1px solid #ddd;text-align:center;font-size:11px;">${worked}</td>
+                        <td style="padding:3px 4px;border:1px solid #ddd;text-align:center;font-size:11px;">${worked}</td>
+                    </tr>`;
+                });
+            });
+            html += '</table>';
+            return html;
+        };
+
+        let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+        <head><meta charset="UTF-8"></head>
+        <body style="font-family:Calibri,Arial;padding:16px;">
+        <h1 style="color:#1a365d;">🏥 CVICU Balanced Schedule — Color Coded</h1>`;
+
+        if (balancedResults.day)
+            html += makeSheet('☀️ DAY SHIFT', balancedResults.day, ['7A','MID'], true);
+        if (balancedResults.night)
+            html += makeSheet('🌙 NIGHT SHIFT', balancedResults.night, ['7P'], false);
+
+        html += '</body></html>';
+
+        const uri = 'data:application/vnd.ms-excel;charset=utf-8,' + encodeURIComponent(html);
+        const a = document.createElement('a');
+        a.href = uri; a.download = 'CVICU_Colored_Schedule.xls';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+
+    
         if (!balancedResults || !rawData) { alert('⚠️ Run balancing first.'); return; }
 
         try {
