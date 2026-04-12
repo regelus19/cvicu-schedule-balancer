@@ -2226,80 +2226,50 @@
         const dates = rawData.dates.map(d => d.date);
         const COUNTING_DAY = ['7A','MID'];
         const simulation = balancedResults.day ? balancedResults.day.simulation : {};
-        const dailyCoverage = dates.map(date => {
-            let rnCount=0, pctCount=0, chgCount=0, ebCount=0, esCount=0;
-            staffRoster.forEach(staff => {
-                if (EXCLUDED_STAFF.includes(staff.name)) return;
-                const staffData = simulation[staff.name];
-                const shift = staffData ? staffData[date] : '';
-                if (COUNTING_DAY.includes(shift)) {
-                    if (staff.job?.includes('RN')) { rnCount++; if (staff.skill?.includes('CN')) chgCount++; if (staff.skill?.includes('EB')) ebCount++; if (staff.skill?.includes('ES')) esCount++; }
-                    if (staff.job?.includes('PCT')) pctCount++;
-                }
+        const cov = dates.map(date => {
+            let rn=0,pct=0,chg=0,eb=0,es=0;
+            staffRoster.forEach(s => {
+                if (EXCLUDED_STAFF.includes(s.name)) return;
+                const sh = simulation[s.name] ? simulation[s.name][date] : '';
+                if (!COUNTING_DAY.includes(sh)) return;
+                if (s.job?.includes('RN')) { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
+                if (s.job?.includes('PCT')) pct++;
             });
-            const rnMin=getRnMin(date), pctMin=getPctMin(date), rnMax=getRnMax(date);
-            return { date, rn:rnCount, pct:pctCount, chg:chgCount, eb:ebCount, es:esCount, rnMin, rnMax, pctMin };
+            const rnMin=getRnMin(date), pctMin=getPctMin(date);
+            return {date,rn,pct,chg,eb,es,rnMin,pctMin};
         });
 
-        // ── Horizontal layout matching screenshot ──────────────────────────
-        const dayLabels = dates.map(d => parseDate(d).toLocaleDateString('en-US',{weekday:'short'}));
-        const dateRow   = ['','','', ...dates];
-        const dayRow    = ['','','', ...dayLabels];
-
-        const rnMin_row  = ['RN Count',    requirements.RN_WD,  '',   ...dailyCoverage.map(d=>d.rn)];
-        const rnNet_row  = ['RN +/-',      '',                  '',   ...dailyCoverage.map(d=>d.rn-d.rnMin)];
-        const pctMin_row = ['PCT Count',   requirements.PCT_WD, '',   ...dailyCoverage.map(d=>d.pct)];
-        const pctNet_row = ['PCT +/-',     '',                  '',   ...dailyCoverage.map(d=>d.pct-d.pctMin)];
-        const cnMin_row  = ['Charge RN',   requirements.CN,     '',   ...dailyCoverage.map(d=>d.chg)];
-        const cnNet_row  = ['Charge +/-',  '',                  '',   ...dailyCoverage.map(d=>d.chg-requirements.CN)];
-        const ebMin_row  = ['ECMO Bedside (EB)', requirements.EB, '', ...dailyCoverage.map(d=>d.eb)];
-        const ebNet_row  = ['EB +/-',      '',                  '',   ...dailyCoverage.map(d=>d.eb-requirements.EB)];
-        const esMin_row  = ['ECMO Specialist (ES)', requirements.ES,'', ...dailyCoverage.map(d=>d.es)];
-        const esNet_row  = ['ES +/-',      '',                  '',   ...dailyCoverage.map(d=>d.es-requirements.ES)];
+        const days  = dates.map(d => parseDate(d).toLocaleDateString('en-US',{weekday:'short'}));
+        const nets  = cov.map(c => c.rn - c.rnMin);
+        const gapCount = nets.filter(n => n < 0).length;
+        const overCount = nets.filter(n => n > 4).length;
 
         const data = [
             ['✅ AUTO-BALANCED SCHEDULE'],
-            [`1 RN gap day(s) | v30: Day shift balanced | Night pool: see Night sheet`],
+            [`${gapCount} RN gap day(s) | ${overCount} over-cap day(s) | v30 | Night pool: see Night Coverage sheet`],
             [],
-            dateRow,
-            dayRow,
+            // Header rows — dates then day names (matching Rowena's layout)
+            ['','Min', '', ...dates],
+            ['','',    '', ...days],
             [],
-            rnMin_row,
-            rnNet_row,
-            pctMin_row,
-            pctNet_row,
-            cnMin_row,
-            cnNet_row,
-            ebMin_row,
-            ebNet_row,
-            esMin_row,
-            esNet_row,
+            // RN section
+            ['RN Count',         requirements.RN_WD, '', ...cov.map(c=>c.rn)],
+            ['RN +/-',           '',                 '', ...cov.map(c=>c.rn-c.rnMin)],
+            // PCT section
+            ['PCT Count',        requirements.PCT_WD,'', ...cov.map(c=>c.pct)],
+            ['PCT +/-',          '',                 '', ...cov.map(c=>c.pct-c.pctMin)],
+            // Charge RN
+            ['Charge RN',        requirements.CN,    '', ...cov.map(c=>c.chg)],
+            ['Charge +/-',       '',                 '', ...cov.map(c=>c.chg-requirements.CN)],
+            // EB
+            ['ECMO Bedside (EB)',requirements.EB,    '', ...cov.map(c=>c.eb)],
+            ['EB +/-',           '',                 '', ...cov.map(c=>c.eb-requirements.EB)],
+            // ES
+            ['ECMO Specialist (ES)',requirements.ES, '', ...cov.map(c=>c.es)],
+            ['ES +/-',           '',                 '', ...cov.map(c=>c.es-requirements.ES)],
         ];
 
-        const ws = XLSX.utils.aoa_to_sheet(data);
-
-        // Apply color styling to net rows (green=ok, red=gap, orange=over)
-        const netRowIndices = [7,9,11,13,15]; // 0-based rows for RN+/-, PCT+/-, etc.
-        dates.forEach((date, colIdx) => {
-            const col = colIdx + 3; // offset for label cols
-            netRowIndices.forEach(rowIdx => {
-                const cellAddr = XLSX.utils.encode_cell({r: rowIdx, c: col});
-                if (!ws[cellAddr]) return;
-                const val = ws[cellAddr].v;
-                let fill = 'FF92D050'; // green
-                if (rowIdx === 7) { // RN net row
-                    if (val < 0) fill = 'FFFF0000';
-                    else if (val > 4) fill = 'FFFF6600';
-                    else if (val === 0) fill = 'FFFFFF00';
-                } else {
-                    if (val < 0) fill = 'FFFF0000';
-                    else if (val === 0) fill = 'FFFFFF00';
-                }
-                ws[cellAddr].s = { fill: { fgColor: { rgb: fill }, patternType: 'solid' }, font: { bold: true } };
-            });
-        });
-
-        XLSX.utils.book_append_sheet(wb, ws, '📅 Day Coverage');
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), '📅 Day Coverage');
     }
 
     function addNightCoverageSummarySheet(wb) {
