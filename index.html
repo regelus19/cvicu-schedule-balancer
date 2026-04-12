@@ -64,7 +64,7 @@
         <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v28</span></h1>
         <p class="subtitle">Upload MyTime export → Auto-balance → Download Excel/CSV</p>
         <div style="margin-top:10px;padding:8px 14px;background:#e6fffa;border-radius:6px;font-size:13px;color:#234e52;display:inline-block;">
-            ✅ v30 Fixes: PCT weekday/weekend split, RN cap (+2 WD/+1 WE), MID shifts in day balance, MID weekend min 1, + CHG renamed to CN, CN count fixed in coverage summary (min 3), + PAYRO ≠ PTO (payroll code preserved), admin time codes no longer misclassified as shifts
+            ✅ v30 Fixes: PCT/HUC weekday/weekend split, RN cap enforced, MID shifts in day balance, MID weekend min 1, CN count fixed (min 3), PAYRO≠PTO, HUC included as US job (6W18H=7A, 18W6H=7P), master staff database hardwired
         </div>
     </div>
 
@@ -136,7 +136,7 @@
                     <li><strong>RN Weekend Min</strong> — target RN count Sat–Sun (default: 14)</li>
                     <li><strong>Cap sliders</strong> — max RNs above minimum per day type:<br>
                         &nbsp;&nbsp;Sat +1, Sun +2, Mon/Tue/Wed/Fri +3, Thu +4</li>
-                    <li><strong>PCT Weekday</strong> min 2, <strong>PCT Weekend</strong> min 1</li>
+                    <li><strong>PCT/HUC Weekday</strong> min 2, <strong>PCT/HUC Weekend</strong> min 1 (PCT and HUC are counted together toward coverage)</li>
                     <li><strong>CN</strong> (Charge Nurse) min 3 per shift</li>
                     <li>EB and ES minimums (skill mix)</li>
                 </ul>
@@ -172,7 +172,7 @@
                     <li><strong>☀️ Balance Day Shift</strong> — fills AM + MID shift gaps</li>
                     <li><strong>🌙 Balance Night Shift</strong> — fills PM shift gaps</li>
                     <li><strong>🔄 Balance Both</strong> — runs day then night in one click</li>
-                    <li>The algorithm: fills PCT first → CN → EB/ES → RN; respects all caps</li>
+                    <li>The algorithm: fills PCT/HUC first → CN → EB/ES → RN; respects all caps</li>
                     <li>Weekends are prioritized first in the fill order</li>
                 </ul>
                 <div style="margin-top:8px;font-size:12px;background:#fef3c7;padding:6px 8px;border-radius:4px;color:#744210;">
@@ -185,7 +185,7 @@
                 <ul style="font-size:13px;line-height:1.9;padding-left:18px;color:#2d3748;">
                     <li><strong>📥 Download Excel</strong> — multi-sheet workbook:<br>
                         &nbsp;&nbsp;• Coverage Summary (weekday/weekend view)<br>
-                        &nbsp;&nbsp;• Day Shift (ANMs → MID RNs → RNs → PCTs)<br>
+                        &nbsp;&nbsp;• Day Shift (ANMs → MID RNs → RNs → PCTs → HUCs)<br>
                         &nbsp;&nbsp;• Night Shift<br>
                         &nbsp;&nbsp;• Original MyTime Import (pre-balance)</li>
                     <li><strong>📋 Download Move Report</strong> — CSV of every change made</li>
@@ -534,7 +534,7 @@
 
     <div class="card hidden" id="requirementsSection">
         <div class="card-title">⚙️ Step 2: Set Coverage Requirements</div>
-        <div style="font-size:13px;color:#718096;margin-bottom:12px;">Weekday = Mon–Fri &nbsp;|&nbsp; Weekend = Sat/Sun &nbsp;|&nbsp; <strong>Cap = Min + offset</strong> — tweak to control max RN overage</div>
+        <div style="font-size:13px;color:#718096;margin-bottom:12px;">Weekday = Mon–Fri &nbsp;|&nbsp; Weekend = Sat/Sun &nbsp;|&nbsp; <strong>Cap = Min + offset</strong> &nbsp;|&nbsp; PCT/HUC counted together — tweak to control max RN overage</div>
 
         <!-- RN MIN + CAP ROW -->
         <div style="background:#edf2f7;border-radius:8px;padding:16px;margin-bottom:12px;">
@@ -587,13 +587,13 @@
         <div class="stats-grid">
             <div>
                 <div class="slider-group">
-                    <div class="slider-label"><span>☀️ PCT Weekday Min</span><span class="slider-value" id="pctWdValue">2</span></div>
+                    <div class="slider-label"><span>☀️ PCT/HUC Weekday Min</span><span class="slider-value" id="pctWdValue">2</span></div>
                     <input type="range" id="pctWdSlider" min="1" max="10" value="2">
                 </div>
             </div>
             <div>
                 <div class="slider-group">
-                    <div class="slider-label"><span>📅 PCT Weekend Min</span><span class="slider-value" id="pctWeValue">1</span></div>
+                    <div class="slider-label"><span>📅 PCT/HUC Weekend Min</span><span class="slider-value" id="pctWeValue">1</span></div>
                     <input type="range" id="pctWeSlider" min="0" max="10" value="1">
                 </div>
             </div>
@@ -1684,8 +1684,8 @@
             if (protectedStaff.includes(staff.name)) return;
             if (staff.type === 'PRN') return;
             if (staff.shift !== 'AM' && staff.shift !== 'MIDSHIFT') return;
-            // Only enforce minimums for clinical staff (RN/PCT) — skip non-standard job codes
-            if (!staff.job?.includes('RN') && !staff.job?.includes('PCT')) return;
+            // Only enforce minimums for clinical staff (RN/PCT/HUC) — skip non-standard job codes
+            if (!staff.job?.includes('RN') && !staff.job?.includes('PCT') && staff.job !== 'HUC') return;
 
             const currentShifts = countEffectiveShifts(staff.name, simulation, COUNTING_DAY);
             const required = staff.type==='FT' ? 18 : (staff.type==='PT' ? 12 : 0);
@@ -1803,8 +1803,8 @@
             if (protectedStaff.includes(staff.name)) return;
             if (staff.type === 'PRN') return;
             if (staff.shift !== 'PM') return;
-            // Only enforce minimums for clinical staff (RN/PCT) — skip non-standard job codes
-            if (!staff.job?.includes('RN') && !staff.job?.includes('PCT')) return;
+            // Only enforce minimums for clinical staff (RN/PCT/HUC) — skip non-standard job codes
+            if (!staff.job?.includes('RN') && !staff.job?.includes('PCT') && staff.job !== 'HUC') return;
 
             const currentShifts = countEffectiveShifts(staff.name, simulation, COUNTING_NIGHT);
             const required = staff.type==='FT' ? 18 : (staff.type==='PT' ? 12 : 0);
@@ -2708,8 +2708,8 @@
         data.push([]);
         data.push(['RN Count',              requirements.RN_WD,  '', ...cov.map(c=>c.rn)]);
         data.push(['RN +/-',                '',                  '', ...cov.map(c=>c.rn-c.rnMin)]);
-        data.push(['PCT Count',             requirements.PCT_WD, '', ...cov.map(c=>c.pct)]);
-        data.push(['PCT +/-',               '',                  '', ...cov.map(c=>c.pct-c.pctMin)]);
+        data.push(['PCT/HUC Count',         requirements.PCT_WD, '', ...cov.map(c=>c.pct)]);
+        data.push(['PCT/HUC +/-',            '',                  '', ...cov.map(c=>c.pct-c.pctMin)]);
         data.push(['Charge RN',             requirements.CN,     '', ...cov.map(c=>c.chg)]);
         data.push(['Charge +/-',            '',                  '', ...cov.map(c=>c.chg-requirements.CN)]);
         data.push(['ECMO Bedside (EB)',     requirements.EB,     '', ...cov.map(c=>c.eb)]);
@@ -2722,7 +2722,7 @@
         // Color code the tally rows: green=at par/over min, blue=over cap, red=negative
         // Find which rows in `data` are the +/- net rows
         const totalRows = data.length;
-        const netRowLabels = ['RN +/-','PCT +/-','Charge +/-','EB +/-','ES +/-'];
+        const netRowLabels = ['RN +/-','PCT/HUC +/-','Charge +/-','EB +/-','ES +/-'];
         data.forEach((row, rowIdx) => {
             const label = row[0];
             if (!netRowLabels.includes(label)) return;
