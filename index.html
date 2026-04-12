@@ -2362,7 +2362,26 @@
             ];
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pctData), 'PCT');
 
-            XLSX.writeFile(wb, 'CVICU_Day_Balanced_Schedule.xlsx');
+
+            // ── HUC sheet (all HUCs — both AM and PM) ──
+            const allHUCs = staffRoster.filter(s => s.job === 'HUC' && !EXCLUDED_STAFF.includes(s.name));
+            const dayHucData = [
+                ['Employee', ...dates.map(fmtDow)],
+                ['',         ...dates.map(fmtDate)],
+                ...allHUCs.map(s => {
+                    const sd = sim[s.name] || {};
+                    return [s.name, ...dates.map(d => sd[d] || '')];
+                }),
+                ["TOTAL AM HUC's", ...dates.map(d =>
+                    allHUCs.filter(s => (sim[s.name]?.[d] || '').toUpperCase() === '7A').length || ''
+                )],
+                ["TOTAL PM HUC's", ...dates.map(d =>
+                    allHUCs.filter(s => (sim[s.name]?.[d] || '').toUpperCase() === '7P').length || ''
+                )],
+            ];
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dayHucData), 'HUC');
+
+                        XLSX.writeFile(wb, 'CVICU_Day_Balanced_Schedule.xlsx');
         } catch(e) { alert('Day schedule download failed: ' + e.message); }
     }
 
@@ -2445,7 +2464,23 @@
             ];
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pctData), 'PCT');
 
-            XLSX.writeFile(wb, 'CVICU_Night_Balanced_Schedule.xlsx');
+
+            // ── HUC sheet (PM HUCs only) ──
+            const nightHUCs = staffRoster.filter(s => s.job === 'HUC' && s.shift === 'PM' && !EXCLUDED_STAFF.includes(s.name));
+            const nightHucData = [
+                ['Employee', 'Job', 'Status', 'Role', ...dates.map(fmtDow)],
+                ['', '', '', '',                       ...dates.map(fmtDate)],
+                ...nightHUCs.map(s => {
+                    const sd = sim[s.name] || {};
+                    return [s.name, s.job, s.type, '', ...dates.map(d => sd[d] || '')];
+                }),
+                ['Total HUC (Minimum)', '', '', '', ...dates.map(d =>
+                    nightHUCs.filter(s => (sim[s.name]?.[d] || '').toUpperCase() === '7P').length || ''
+                )],
+            ];
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(nightHucData), 'HUC');
+
+                        XLSX.writeFile(wb, 'CVICU_Night_Balanced_Schedule.xlsx');
         } catch(e) { alert('Night schedule download failed: ' + e.message); }
     }
 
