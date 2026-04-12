@@ -1089,7 +1089,7 @@
                     return '7A'; // default
                 }
                 // Open x = open shift pickup (working, but shift type unknown — keep as working indicator)
-                if (upper.startsWith('OPEN')) return '7A'; // will be overridden by shift pool logic
+                if (upper.startsWith('OPEN')) return 'EDU'; // Open x = Education hours — NOT counted toward coverage
                 if (upper === 'PTO' || upper === 'HOL' || upper === 'FMLA' || upper === 'LOA' || upper === 'ORI' || upper === 'ADMIN' || upper === 'EDU' || upper === 'FLOAT' || upper === 'CALL' || upper === 'PRECEPT') return upper;
                 // FIX v28: Narrow time windows — only translate CLEAR shift start times.
                 // Old code: hour < 6 → '7P' caught ANM admin times like '4:00 AM' → '7P' (WRONG)
