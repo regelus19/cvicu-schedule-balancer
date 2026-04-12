@@ -2318,15 +2318,52 @@
 
     function addShiftSheet(wb, result, sheetName, shiftLabel) {
         const { simulation, dates } = result;
+        const isDay = shiftLabel.includes('DAY');
+        const COUNTING = isDay ? ['7A','MID'] : ['7P'];
+
         const anms  = staffRoster.filter(s=>ANM_STAFF.includes(s.name));
         const mids  = staffRoster.filter(s=>s.shift==='MIDSHIFT'&&!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name));
         const rns   = staffRoster.filter(s=>s.job?.includes('RN')&&s.shift!=='MIDSHIFT'&&!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name));
         const pcts  = staffRoster.filter(s=>s.job?.includes('PCT'));
+
         const data = [[`AUTO-BALANCED ${shiftLabel} SCHEDULE - v30`],['Name','Job','Type','Skills',...dates]];
         if (anms.length>0)  { data.push(['=== ANMs ===']); anms.forEach(staff => { const sd=simulation[staff.name]; data.push([staff.name,staff.job,staff.type,staff.skill,...dates.map(d=>sd[d]||'')]); }); data.push([]); }
         if (mids.length>0)  { data.push(['=== MID SHIFT RNs ===']); mids.forEach(staff => { const sd=simulation[staff.name]; data.push([staff.name,staff.job,staff.type,staff.skill,...dates.map(d=>sd[d]||'')]); }); data.push([]); }
         if (rns.length>0)   { data.push(['=== RNs ===']); rns.forEach(staff => { const sd=simulation[staff.name]; data.push([staff.name,staff.job,staff.type,staff.skill,...dates.map(d=>sd[d]||'')]); }); data.push([]); }
         if (pcts.length>0)  { data.push(['=== PCTs ===']); pcts.forEach(staff => { const sd=simulation[staff.name]; data.push([staff.name,staff.job,staff.type,staff.skill,...dates.map(d=>sd[d]||'')]); }); }
+
+        // ── COVERAGE SUMMARY at the bottom (matches Rowena's format) ──
+        const cov = dates.map(date => {
+            let rn=0,pct=0,chg=0,eb=0,es=0;
+            staffRoster.forEach(s => {
+                if (EXCLUDED_STAFF.includes(s.name)) return;
+                const sh = simulation[s.name] ? simulation[s.name][date] : '';
+                if (!COUNTING.includes(sh)) return;
+                if (s.job?.includes('RN')) { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
+                if (s.job?.includes('PCT')) pct++;
+            });
+            const dow = parseDate(date).getDay();
+            const isWE = isDay ? (dow===0||dow===6) : (dow===5||dow===6||dow===0);
+            const rnMin  = isWE ? requirements.RN_WE  : requirements.RN_WD;
+            const pctMin = isWE ? requirements.PCT_WE : requirements.PCT_WD;
+            return {rn,pct,chg,eb,es,rnMin,pctMin};
+        });
+
+        data.push([]);
+        data.push(['🔢 COVERAGE SUMMARY', 'Min', '', ...dates]);
+        data.push(['', '', '', ...dates.map(d => parseDate(d).toLocaleDateString('en-US',{weekday:'short'}))]);
+        data.push([]);
+        data.push(['RN Count',              requirements.RN_WD,  '', ...cov.map(c=>c.rn)]);
+        data.push(['RN +/-',                '',                  '', ...cov.map(c=>c.rn-c.rnMin)]);
+        data.push(['PCT Count',             requirements.PCT_WD, '', ...cov.map(c=>c.pct)]);
+        data.push(['PCT +/-',               '',                  '', ...cov.map(c=>c.pct-c.pctMin)]);
+        data.push(['Charge RN',             requirements.CN,     '', ...cov.map(c=>c.chg)]);
+        data.push(['Charge +/-',            '',                  '', ...cov.map(c=>c.chg-requirements.CN)]);
+        data.push(['ECMO Bedside (EB)',     requirements.EB,     '', ...cov.map(c=>c.eb)]);
+        data.push(['EB +/-',                '',                  '', ...cov.map(c=>c.eb-requirements.EB)]);
+        data.push(['ECMO Specialist (ES)',  requirements.ES,     '', ...cov.map(c=>c.es)]);
+        data.push(['ES +/-',                '',                  '', ...cov.map(c=>c.es-requirements.ES)]);
+
         XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), sheetName);
     }
     function addDayShiftSheet(wb, result) { addShiftSheet(wb, result, 'Day Shift', 'DAY SHIFT'); }
