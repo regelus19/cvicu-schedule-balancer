@@ -744,7 +744,8 @@
         <div class="card-title">📊 Results &amp; Download</div>
         <div id="resultsContent"></div>
         <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;">
-            <button class="btn btn-secondary" onclick="downloadExcel()">📥 Download Excel</button>
+            <button class="btn btn-secondary" onclick="downloadDaySchedule()">☀️ Download Day Schedule</button>
+            <button class="btn btn-secondary" onclick="downloadNightSchedule()">🌙 Download Night Schedule</button>
             <button class="btn btn-secondary" onclick="downloadColoredTally()" style="background:#1F3864;">🎨 Download Colored Tally</button>
             <button class="btn btn-secondary" onclick="downloadMoveReport()">📋 Download Move Report</button>
         </div>
@@ -2214,18 +2215,238 @@
         document.getElementById('fbCopyConfirm').style.display = 'none';
     }
 
-    function downloadExcel() {
-        if (!balancedResults || !rawData) { alert('⚠️ Run balancing first.'); return; }
+    // ─── Helper: compute per-staff summary values ────────────────────────────
+    function staffSummary(name, sim, dates, shiftCode, isDay) {
+        let worked=0, pto=0, ro=0, weekendWorked=0;
+        dates.forEach(d => {
+            const v = sim[name] ? sim[name][d] : '';
+            const dow = parseDate(d).getDay();
+            const isWE = isDay ? (dow===0||dow===6) : (dow===5||dow===6||dow===0);
+            if (v === shiftCode || v === 'MID') { worked++; if(isWE) weekendWorked++; }
+            if (v === 'PTO' || v === 'VAC') pto++;
+            if (v === 'R/O') ro++;
+        });
+        return { worked, pto, ro, weekendWorked, total: worked+pto };
+    }
+
+    // ─── Helper: format date as "M/DD/\nYYYY" matching Rowena's format ──────
+    function fmtDate(d) {
+        const dt = parseDate(d);
+        const m  = dt.getMonth()+1;
+        const dd = String(dt.getDate()).padStart(2,'0');
+        return `${m}/${dd}/\n${dt.getFullYear()}`;
+    }
+
+    // ─── Helper: day-of-week label for header row ────────────────────────────
+    function fmtDow(d) {
+        return parseDate(d).toLocaleDateString('en-US',{weekday:'short'});
+    }
+
+    // ─── Coverage tally rows (appended at bottom of sheet) ──────────────────
+    function buildCoverageTally(dates, sim, counting, isDay, requirements) {
+        const cov = dates.map(date => {
+            let rn=0,pct=0,chg=0,eb=0,es=0;
+            staffRoster.forEach(s => {
+                if (EXCLUDED_STAFF.includes(s.name)) return;
+                const sh = sim[s.name] ? sim[s.name][date] : '';
+                if (!counting.includes(sh)) return;
+                if (s.job==='RN') { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
+                if (s.job==='PCT') pct++;
+            });
+            const dow = parseDate(date).getDay();
+            const isWE = isDay ? (dow===0||dow===6) : (dow===5||dow===6||dow===0);
+            return { rn, pct, chg, eb, es,
+                rnMin:  isWE ? requirements.RN_WE  : requirements.RN_WD,
+                pctMin: isWE ? requirements.PCT_WE : requirements.PCT_WD };
+        });
+        return [
+            [],
+            ['🔢 COVERAGE SUMMARY', 'Min', '', '', ...dates.map(fmtDate)],
+            ['', '', '', '', ...dates.map(fmtDow)],
+            [],
+            ['RN Count',             requirements.RN_WD,  '','', ...cov.map(c=>c.rn)],
+            ['RN +/-',               '',                  '','', ...cov.map(c=>c.rn-c.rnMin)],
+            ['PCT Count',            requirements.PCT_WD, '','', ...cov.map(c=>c.pct)],
+            ['PCT +/-',              '',                  '','', ...cov.map(c=>c.pct-c.pctMin)],
+            ['Charge RN',            requirements.CN,     '','', ...cov.map(c=>c.chg)],
+            ['Charge +/-',           '',                  '','', ...cov.map(c=>c.chg-requirements.CN)],
+            ['ECMO Bedside (EB)',    requirements.EB,     '','', ...cov.map(c=>c.eb)],
+            ['EB +/-',               '',                  '','', ...cov.map(c=>c.eb-requirements.EB)],
+            ['ECMO Specialist (ES)', requirements.ES,     '','', ...cov.map(c=>c.es)],
+            ['ES +/-',               '',                  '','', ...cov.map(c=>c.es-requirements.ES)],
+        ];
+    }
+
+    // ─── DAY SCHEDULE DOWNLOAD ───────────────────────────────────────────────
+    function downloadDaySchedule() {
+        if (!balancedResults?.day) { alert('⚠️ Run Day shift balancing first.'); return; }
         try {
+            const { simulation: sim, dates } = balancedResults.day;
             const wb = XLSX.utils.book_new();
-            if (balancedResults.day)   addDayCoverageSummarySheet(wb);
-            if (balancedResults.night) addNightCoverageSummarySheet(wb);
-            if (balancedResults.day)   addDayShiftSheet(wb, balancedResults.day);
-            if (balancedResults.night) addNightShiftSheet(wb, balancedResults.night);
-            addOriginalMyTimeSheet(wb);
-            // Use writeFile with bookType xlsx — colors handled via separate colored tally download
-            XLSX.writeFile(wb, 'CVICU_Balanced_Schedule_v30.xlsx');
-        } catch (error) { alert('Download failed: ' + error.message); }
+
+            // ── RN sheet ──
+            const isDay = true;
+            const shiftCode = '7A';
+            const sumCols = ['Weekends','7A','PTO','7A & PTO','Total Shifts','Weekend Shifts'];
+
+            // Staff groups — day shift
+            const anms     = staffRoster.filter(s => ANM_STAFF.includes(s.name) && s.shift !== 'PM');
+            const ebChg    = staffRoster.filter(s => !ANM_STAFF.includes(s.name) && !EXCLUDED_STAFF.includes(s.name) && s.shift==='AM' && s.job==='RN' && s.skill?.includes('EB') && s.skill?.includes('CN'));
+            const esChg    = staffRoster.filter(s => !ANM_STAFF.includes(s.name) && !EXCLUDED_STAFF.includes(s.name) && s.shift==='AM' && s.job==='RN' && s.skill?.includes('ES') && s.skill?.includes('CN'));
+            const esOnly   = staffRoster.filter(s => !ANM_STAFF.includes(s.name) && !EXCLUDED_STAFF.includes(s.name) && s.shift==='AM' && s.job==='RN' && s.skill?.includes('ES') && !s.skill?.includes('CN'));
+            const ebOnly   = staffRoster.filter(s => !ANM_STAFF.includes(s.name) && !EXCLUDED_STAFF.includes(s.name) && s.shift==='AM' && s.job==='RN' && s.skill?.includes('EB') && !s.skill?.includes('CN'));
+            const plainRN  = staffRoster.filter(s => !ANM_STAFF.includes(s.name) && !EXCLUDED_STAFF.includes(s.name) && s.shift==='AM' && s.job==='RN' && !s.skill?.includes('EB') && !s.skill?.includes('ES') && !s.skill?.includes('CN'));
+            const mids     = staffRoster.filter(s => s.shift==='MIDSHIFT' && !EXCLUDED_STAFF.includes(s.name));
+
+            const skillDisp = s => {
+                const parts = [];
+                if (s.skill?.includes('EB')) parts.push('EB');
+                if (s.skill?.includes('ES')) parts.push('ES');
+                if (s.skill?.includes('CN')) parts.push('CHG');
+                return parts.join('/');
+            };
+
+            const staffRow = (s) => {
+                const sm = staffSummary(s.name, sim, dates, shiftCode, isDay);
+                const sd = sim[s.name] || {};
+                return [s.name, s.job==='RN'&&ANM_STAFF.includes(s.name)?'AMGR':s.job, s.type, skillDisp(s),
+                    ...dates.map(d => sd[d] || ''),
+                    sm.weekendWorked, sm.worked, sm.pto, sm.total, sm.total, sm.weekendWorked];
+            };
+
+            const hdr1 = ['Employee','Job','','', ...dates.map(fmtDow), ...sumCols];
+            const hdr2 = ['','','','',            ...dates.map(fmtDate), ...Array(sumCols.length).fill('')];
+
+            const rnData = [hdr1, hdr2,
+                ...anms.map(staffRow),
+                ...ebChg.map(staffRow),
+                ...esChg.map(staffRow),
+                ['TOTAL CHG:', '', '', '', ...dates.map(d => {
+                    const cnt = [...ebChg,...esChg].filter(s=>(sim[s.name]?.[d]===shiftCode||sim[s.name]?.[d]==='MID')).length;
+                    return cnt || '';
+                })],
+                ['TOTAL ES:', '', '', '', ...dates.map(d => {
+                    const cnt = [...esChg,...esOnly].filter(s=>(sim[s.name]?.[d]===shiftCode||sim[s.name]?.[d]==='MID')).length;
+                    return cnt || '';
+                })],
+                ...esOnly.map(staffRow),
+                ...ebOnly.map(staffRow),
+                ...plainRN.map(staffRow),
+                ['TOTAL RNS', '', '', '', ...dates.map(d => {
+                    const cnt = [...ebChg,...esChg,...esOnly,...ebOnly,...plainRN].filter(s=>(sim[s.name]?.[d]===shiftCode||sim[s.name]?.[d]==='MID')).length;
+                    return cnt || '';
+                })],
+                ...mids.map(staffRow),
+                ['TOTAL 10A RNS', '', '', '', ...dates.map(_ => '')],
+                ['TOTAL 12P RNS', '', '', '', ...dates.map(_ => '')],
+                ['TOTAL MIDSHIFTERS', '', '', '', ...dates.map(d => {
+                    const cnt = mids.filter(s=>sim[s.name]?.[d]==='MID').length;
+                    return cnt || '';
+                })],
+                ...buildCoverageTally(dates, sim, [shiftCode,'MID'], isDay, requirements),
+            ];
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rnData), 'RN');
+
+            // ── PCT sheet ──
+            const dayPCTs = staffRoster.filter(s => s.job==='PCT' && s.shift==='AM' && !EXCLUDED_STAFF.includes(s.name));
+            const pctData = [
+                ['Employee','Job','', ...dates.map(fmtDow)],
+                ['','','',           ...dates.map(fmtDate)],
+                ...dayPCTs.map(s => {
+                    const sd = sim[s.name] || {};
+                    return [s.name, s.job, s.type, ...dates.map(d => sd[d] || '')];
+                }),
+                ['TOTAL AM PCT', '', '', ...dates.map(d =>
+                    dayPCTs.filter(s=>sim[s.name]?.[d]===shiftCode).length || ''
+                )],
+            ];
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pctData), 'PCT');
+
+            XLSX.writeFile(wb, 'CVICU_Day_Balanced_Schedule.xlsx');
+        } catch(e) { alert('Day schedule download failed: ' + e.message); }
+    }
+
+    // ─── NIGHT SCHEDULE DOWNLOAD ─────────────────────────────────────────────
+    function downloadNightSchedule() {
+        if (!balancedResults?.night) { alert('⚠️ Run Night shift balancing first.'); return; }
+        try {
+            const { simulation: sim, dates } = balancedResults.night;
+            const wb = XLSX.utils.book_new();
+
+            const isDay = false;
+            const shiftCode = '7P';
+            const sumCols = ['Weekends','7P','PTO','R/O','7P & PTO','Weekend Shifts','Total Shifts'];
+
+            // Staff groups — night shift
+            const anms    = staffRoster.filter(s => ANM_STAFF.includes(s.name) && (s.shift==='PM' || s.name==='Sala, Jose F' || s.name==='Wells, Sydney N'));
+            const esChg   = staffRoster.filter(s => !ANM_STAFF.includes(s.name) && !EXCLUDED_STAFF.includes(s.name) && s.shift==='PM' && s.job==='RN' && s.skill?.includes('ES') && s.skill?.includes('CN'));
+            const ebChg   = staffRoster.filter(s => !ANM_STAFF.includes(s.name) && !EXCLUDED_STAFF.includes(s.name) && s.shift==='PM' && s.job==='RN' && s.skill?.includes('EB') && s.skill?.includes('CN'));
+            const esOnly  = staffRoster.filter(s => !ANM_STAFF.includes(s.name) && !EXCLUDED_STAFF.includes(s.name) && s.shift==='PM' && s.job==='RN' && s.skill?.includes('ES') && !s.skill?.includes('CN'));
+            const ebOnly  = staffRoster.filter(s => !ANM_STAFF.includes(s.name) && !EXCLUDED_STAFF.includes(s.name) && s.shift==='PM' && s.job==='RN' && s.skill?.includes('EB') && !s.skill?.includes('CN'));
+            const plainRN = staffRoster.filter(s => !ANM_STAFF.includes(s.name) && !EXCLUDED_STAFF.includes(s.name) && s.shift==='PM' && s.job==='RN' && !s.skill?.includes('EB') && !s.skill?.includes('ES') && !s.skill?.includes('CN'));
+
+            const skillDisp = s => {
+                const parts = [];
+                if (s.skill?.includes('ES')) parts.push('ES');
+                if (s.skill?.includes('EB')) parts.push('EB');
+                if (s.skill?.includes('CN')) parts.push('CHG');
+                return parts.join(' ');
+            };
+
+            const staffRow = (s) => {
+                const sm = staffSummary(s.name, sim, dates, shiftCode, isDay);
+                const sd = sim[s.name] || {};
+                return [s.name, ANM_STAFF.includes(s.name)?'AMGR':s.job, s.type, skillDisp(s),
+                    ...dates.map(d => sd[d] || ''),
+                    sm.weekendWorked, sm.worked, sm.pto, sm.ro, sm.total, sm.weekendWorked, sm.total];
+            };
+
+            const hdr1 = ['Employee','Job','Status','Role', ...dates.map(fmtDow), ...sumCols];
+            const hdr2 = ['','','','',                      ...dates.map(fmtDate), ...Array(sumCols.length).fill('')];
+
+            const rnData = [hdr1, hdr2,
+                ...anms.map(staffRow),
+                ...esChg.map(staffRow),
+                ...ebChg.map(staffRow),
+                ...esOnly.map(staffRow),
+                ['Total ES (Minimum)', '', '', '', ...dates.map(d =>
+                    [...esChg,...esOnly].filter(s=>sim[s.name]?.[d]===shiftCode).length || ''
+                )],
+                ['Total Charge (Minimum)', '', '', '', ...dates.map(d =>
+                    [...esChg,...ebChg].filter(s=>sim[s.name]?.[d]===shiftCode).length || ''
+                )],
+                ...ebOnly.map(staffRow),
+                ...plainRN.map(staffRow),
+                ['Total RNs (minimum)', '', '', '', ...dates.map(d =>
+                    [...esChg,...ebChg,...esOnly,...ebOnly,...plainRN].filter(s=>sim[s.name]?.[d]===shiftCode).length || ''
+                )],
+                ['Total EB (minimum)', '', '', '', ...dates.map(d =>
+                    [...ebChg,...ebOnly].filter(s=>sim[s.name]?.[d]===shiftCode).length || ''
+                )],
+                ['Total EB+ES', '', '', '', ...dates.map(d =>
+                    [...esChg,...ebChg,...esOnly,...ebOnly].filter(s=>sim[s.name]?.[d]===shiftCode).length || ''
+                )],
+                ...buildCoverageTally(dates, sim, [shiftCode], isDay, requirements),
+            ];
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rnData), 'RN');
+
+            // ── PCT sheet ──
+            const nightPCTs = staffRoster.filter(s => s.job==='PCT' && s.shift==='PM' && !EXCLUDED_STAFF.includes(s.name));
+            const pctData = [
+                ['Employee','Job','Status', ...dates.map(fmtDow)],
+                ['','','',                  ...dates.map(fmtDate)],
+                ...nightPCTs.map(s => {
+                    const sd = sim[s.name] || {};
+                    return [s.name, s.job, s.type, ...dates.map(d => sd[d] || '')];
+                }),
+                ['TOTAL PM PCT', '', '', ...dates.map(d =>
+                    nightPCTs.filter(s=>sim[s.name]?.[d]===shiftCode).length || ''
+                )],
+            ];
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pctData), 'PCT');
+
+            XLSX.writeFile(wb, 'CVICU_Night_Balanced_Schedule.xlsx');
+        } catch(e) { alert('Night schedule download failed: ' + e.message); }
     }
 
     function downloadColoredTally() {
