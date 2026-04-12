@@ -1075,42 +1075,32 @@
                 if (upper.includes('VAC')) return 'PTO';
                 if (upper.includes('SICK')) return 'SICK'; // Separate from PTO — does NOT count toward requirements
                 if (upper.includes('R/O') || upper === 'RO') return 'R/O';
-                // R 12:00, R 23:59, R 24:00 = Requested Off (MyTime format for HUC/US staff)
-                if (/^R\s+\d/.test(upper)) return 'R/O';
-                // C 08:00, C 12:00 = Called/Charge working shift — treat as working based on time
-                // 24h format: 8=7A, 12=MID, 0/18-23=7P
-                const cMatch = upper.match(/^C\s+(\d{1,2}):(\d{2})/);
-                if (cMatch) {
-                    const h = parseInt(cMatch[1]);
-                    if (h >= 6 && h <= 9)  return '7A';
-                    if (h >= 10 && h <= 14) return 'MID';
-                    if (h >= 15 || h === 0) return '7P';
-                    if (h >= 1 && h <= 5)  return 'ADMIN';
-                    return '7A'; // default
-                }
-                // Open x = open shift pickup (working, but shift type unknown — keep as working indicator)
-                if (upper.startsWith('OPEN')) return 'EDU'; // Open x = Education hours — NOT counted toward coverage
+                // R {time} = Requested Off (R 12:00, R 23:59, R 24:00)
+                // Does NOT count toward shift requirements or coverage
+                if (/^R[\s_]/.test(upper) || /^R\d/.test(upper)) return 'R/O';
+                // C {anything} = PTO (Approved time off — counts toward requirements but NOT coverage)
+                // Examples: C 08:00, C 12:00, C 04:00 — all mean approved PTO for that staff member
+                if (/^C[\s_]/.test(upper) || upper === 'C') return 'PTO';
+                // Open x = Education hours — NOT counted toward coverage or requirements
+                if (upper.startsWith('OPEN')) return 'EDU';
                 if (upper === 'PTO' || upper === 'HOL' || upper === 'FMLA' || upper === 'LOA' || upper === 'ORI' || upper === 'ADMIN' || upper === 'EDU' || upper === 'FLOAT' || upper === 'CALL' || upper === 'PRECEPT') return upper;
-                // FIX v28: Narrow time windows — only translate CLEAR shift start times.
-                // Old code: hour < 6 → '7P' caught ANM admin times like '4:00 AM' → '7P' (WRONG)
-                // Old code: hour 10-18 → 'MID' caught '1:00 PM' admin times (WRONG for AMGRs)
-                // New: only translate times within tight clinical shift start windows.
+                // Time strings (e.g. "7:30 AM", "1:00 PM") = ANM admin/office schedule
+                // These are NOT clinical shift codes — translate to ADMIN
+                // Only exception: 4:00 AM is already handled below
+                // Real clinical shifts always use MyTime codes (6t19q, 18t7q, etc.)
                 const timeMatch = value.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
                 if (timeMatch) {
                     let hour = parseInt(timeMatch[1]);
                     const ampm = timeMatch[3].toUpperCase();
                     if (ampm === 'PM' && hour !== 12) hour += 12;
                     if (ampm === 'AM' && hour === 12) hour = 0;
-                    if (hour >= 6 && hour <= 9) return '7A';    // Day shift start (6–9 AM)
-                    if (hour >= 10 && hour <= 14) return 'MID'; // Mid shift start (10 AM–2 PM covers 1:00 PM)
-                    if (hour >= 18 && hour <= 22) return '7P';  // Night shift start (6–10 PM)
-                    // FIX v28b: Early AM (1–5 AM) = ANM admin/office shift
-                    // e.g. Rowena Cruz comes in 4am–12pm for office work
-                    // Counts toward shift requirement but NOT toward daily coverage balance
+                    // 4:00 AM = Rowena's early admin shift → ADMIN
                     if (hour >= 1 && hour <= 5) return 'ADMIN';
-                    return ''; // Other ambiguous times → ignored
+                    // All other time strings = ANM admin/office schedule → ADMIN
+                    // (counts toward their requirements but NOT toward coverage balance)
+                    return 'ADMIN';
                 }
-                return value;
+                return '';
             };
 
             // CRITICAL FIX v28: Bounded offset search
