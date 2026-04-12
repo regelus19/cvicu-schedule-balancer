@@ -615,8 +615,18 @@
                     <input type="range" id="esSlider" min="1" max="10" value="2">
                 </div>
             </div>
-        </div>
-    </div>
+            <div>
+                <div class="slider-group">
+                    <div class="slider-label"><span>🔄 MID Shift Weekday Min (Mon–Fri)</span><span class="slider-value" id="midWdValue">2</span></div>
+                    <input type="range" id="midWdSlider" min="0" max="6" value="2">
+                </div>
+            </div>
+            <div>
+                <div class="slider-group">
+                    <div class="slider-label"><span>🔄 MID Shift Weekend Min (Sat–Sun)</span><span class="slider-value" id="midWeValue">1</span></div>
+                    <input type="range" id="midWeSlider" min="0" max="4" value="1">
+                </div>
+            </div>
 
     <div class="card hidden" id="rosterSection">
         <div class="card-title">👥 Step 3: Review Staff Roster &amp; Skills <span class="badge">Auto-saved</span></div>
@@ -895,7 +905,8 @@
     let balancedResults = null;
     let protectedStaff = [];
     let requirements = { RN_WD: 15, RN_WE: 14, PCT_WD: 2, PCT_WE: 1, CN: 3, EB: 2, ES: 2,
-                          CAP_WD: 3, CAP_THU: 4, CAP_SAT: 1, CAP_SUN: 2 }; // per-day RN offset caps
+                          CAP_WD: 3, CAP_THU: 4, CAP_SAT: 1, CAP_SUN: 2,
+                          MID_WD: 2, MID_WE: 1 }; // MID min: weekday=2, weekend=1
 
     // CRITICAL: Dates in MyTime format are 'M/D/ YYYY' (single-digit months/days, space before year)
     // JavaScript's .sort() sorts these ALPHABETICALLY which is WRONG:
@@ -992,13 +1003,22 @@
                 document.getElementById(maxDisplayId).textContent = requirements[minKey] + requirements[capKey];
             });
         });
-        // Simple sliders (CN, EB, ES)
+        // Simple sliders (CN, EB, ES, MID)
         ['chg','eb','es'].forEach(type => {
             const slider = document.getElementById(`${type}Slider`);
             const value  = document.getElementById(`${type}Value`);
             if (slider) slider.addEventListener('input', () => {
                 value.textContent = slider.value;
                 requirements[type === 'chg' ? 'CN' : type.toUpperCase()] = parseInt(slider.value);
+            });
+        });
+        // MID weekday/weekend sliders
+        [['midWdSlider','midWdValue','MID_WD'],['midWeSlider','midWeValue','MID_WE']].forEach(([sid,vid,key]) => {
+            const slider = document.getElementById(sid);
+            const val    = document.getElementById(vid);
+            if (slider) slider.addEventListener('input', () => {
+                val.textContent = slider.value;
+                requirements[key] = parseInt(slider.value);
             });
         });
     }
@@ -1066,7 +1086,8 @@
                 if (upper.includes('6W18') || upper === '6W18H') return '7A';  // HUC day shift code
                 if (upper.includes('18T7') || upper === '18T7Q' || upper === '1817') return '7P';
                 if (upper.includes('18W6') || upper === '18W6H') return '7P';  // HUC night shift code
-                if (upper.includes('10W2') || upper === '10W2Q') return 'MID';
+                if (upper.includes('10W2') || upper === '10W2Q' || upper === '10W22') return 'MID'; // 10W22 = 10am-10pm midshift
+                if (upper === '12W00' || upper.startsWith('12W')) return 'MID'; // 12W00 = 12pm-12am midshift
                 // FIX v28: PAYRO is a PAYROLL ADJUSTMENT CODE, NOT a PTO request.
                 // It will block scheduling (handled in canAdd) but shows as PAYRO in output.
                 if (upper === 'PAYRO' || upper.startsWith('PAYRO')) return 'PAYRO';
@@ -1647,33 +1668,48 @@
                 });
             });
 
-            // Ensure at least 1 MID shift on weekends (Sat/Sun) — but respect RN cap
-            if (isWeekendDate(date)) {
-                const hasMid = Object.values(simulation).some(st => st[date] === 'MID');
-                if (!hasMid) {
-                    const rnMaxNow = getRnMax(date);
-                    // Recount live RN after gap filling above
-                    const currentRNCount = Object.values(simulation).filter(st => {
-                        const sh = st[date]; return (sh === '7A' || sh === 'MID') && st.job === 'RN';
-                    }).length;
-                    if (currentRNCount < rnMaxNow) { // only add MID if under cap
-                        const midCandidates = staffRoster
-                            .filter(s => s.shift === 'MIDSHIFT' && s.type !== 'PRN' && !ANM_STAFF.includes(s.name) && !protectedStaff.includes(s.name))
-                            .filter(s => {
-                                const cur = simulation[s.name][date];
-                                return (!cur || cur.trim() === '') && canAdd(s, date, simulation, COUNTING_DAY, 'day');
-                            })
-                            .map(s => ({ ...s, priority: getPriorityCategory(s, simulation, null) }))
-                            .sort((a,b) => countShifts(a.name,simulation,COUNTING_DAY) - countShifts(b.name,simulation,COUNTING_DAY));
-                        if (midCandidates.length > 0) {
-                            const c = midCandidates[0];
-                            const orig = simulation[c.name][date];
-                            simulation[c.name][date] = 'MID';
-                            trackMove(c.name, c.priority.category, date, 'MID', orig);
-                            moveList.push({ name:c.name, date, shift:'MID', reason:'Weekend MID requirement (min 1)', type:c.type, job:c.job, skill:c.skill });
-                            moves++;
-                        }
-                    }
+            // ── MID MINIMUM ENFORCEMENT (weekday=MID_WD, weekend=MID_WE) ──────────
+            const midRequired = isWeekendDate(date) ? requirements.MID_WE : requirements.MID_WD;
+            const midActual = Object.values(simulation).filter(st =>
+                st[date] === 'MID' && !EXCLUDED_STAFF.includes(st.name)
+            ).length;
+
+            if (midActual < midRequired) {
+                const midNeeded = midRequired - midActual;
+                const rnMaxNow = getRnMax(date);
+                const currentRNCount = Object.values(simulation).filter(st => {
+                    const sh = st[date]; return (sh === '7A' || sh === 'MID') && st.job === 'RN';
+                }).length;
+
+                // Candidates: permanent MIDSHIFT staff first, then rotating AM staff
+                const midCandidates = staffRoster
+                    .filter(s => (s.shift === 'MIDSHIFT' || s.shift === 'AM') &&
+                        s.type !== 'PRN' && s.job === 'RN' &&
+                        !ANM_STAFF.includes(s.name) && !EXCLUDED_STAFF.includes(s.name) &&
+                        !protectedStaff.includes(s.name))
+                    .filter(s => {
+                        const cur = simulation[s.name][date];
+                        return (!cur || cur.trim() === '') && canAdd(s, date, simulation, COUNTING_DAY, 'day');
+                    })
+                    .map(s => ({ ...s, priority: getPriorityCategory(s, simulation, null) }))
+                    // Permanent MIDSHIFT staff first, then AM rotating staff
+                    .sort((a,b) => {
+                        if (a.shift === 'MIDSHIFT' && b.shift !== 'MIDSHIFT') return -1;
+                        if (a.shift !== 'MIDSHIFT' && b.shift === 'MIDSHIFT') return 1;
+                        return countShifts(a.name,simulation,COUNTING_DAY) - countShifts(b.name,simulation,COUNTING_DAY);
+                    });
+
+                let filled = 0;
+                for (const c of midCandidates) {
+                    if (filled >= midNeeded) break;
+                    if (currentRNCount + filled >= rnMaxNow) break; // respect RN cap
+                    const orig = simulation[c.name][date];
+                    simulation[c.name][date] = 'MID';
+                    trackMove(c.name, c.priority.category, date, 'MID', orig);
+                    moveList.push({ name:c.name, date, shift:'MID',
+                        reason: `MID minimum (${isWeekendDate(date)?'weekend':'weekday'} needs ${midRequired})`,
+                        type:c.type, job:c.job, skill:c.skill });
+                    filled++; moves++;
                 }
             }
         });
@@ -1851,7 +1887,7 @@
             const upper = String(raw).toUpperCase();
             if (mode === 'day') {
                 if (upper.includes('6T19')||upper.includes('7A')||upper.includes('6W18')) code = '7A';
-                else if (upper.includes('10W2')||upper==='10A'||upper==='MID') code = 'MID'; // normalise to MID
+                else if (upper.includes('10W2')||upper==='10A'||upper==='MID'||upper==='10W22'||upper.startsWith('12W')) code = 'MID';
                 else if (upper.includes('R/O')||upper==='RO'||/^R\s+\d/.test(upper)) code = 'R/O';
                 else if (upper.includes('PTO')||upper.includes('VAC')) code = 'PTO';
                 else if (upper==='PAYRO'||upper.startsWith('PAYRO')) code = 'PAYRO';
@@ -1873,7 +1909,7 @@
 
 
     function getGaps(date, simulation, countingCodes) {
-        let rn=0, pct=0, chg=0, eb=0, es=0;
+        let rn=0, pct=0, chg=0, eb=0, es=0, mid=0;
         const isDay = countingCodes.includes('7A') || countingCodes.includes('MID');
         Object.values(simulation).forEach(staff => {
             if (EXCLUDED_STAFF.includes(staff.name)) return; // excluded staff don't affect gap calc
@@ -1883,17 +1919,20 @@
             if (!counts) return;
             if (staff.job==='RN') { rn++; if (staff.skill?.includes('CN')) chg++; if (staff.skill?.includes('EB')) eb++; if (staff.skill?.includes('ES')) es++; }
             else if (staff.job==='PCT' || staff.job==='HUC') { pct++; }
+            if (shift === 'MID') mid++;
         });
         const rnMin  = getRnMin(date);
         const pctMin = getPctMin(date);
         const rnMax  = getRnMax(date);
+        const midMin = isWeekendDate(date) ? requirements.MID_WE : requirements.MID_WD;
         return {
             RN:  rn  >= rnMax  ? 0 : Math.max(0, rnMin  - rn),
             PCT: Math.max(0, pctMin - pct),
             CN:  Math.max(0, requirements.CN - chg),
             EB:  Math.max(0, requirements.EB - eb),
             ES:  Math.max(0, requirements.ES - es),
-            _rnCurrent: rn, _rnMax: rnMax
+            MID: Math.max(0, midMin - mid),
+            _rnCurrent: rn, _rnMax: rnMax, _midCurrent: mid, _midMin: midMin
         };
     }
 
@@ -2252,19 +2291,22 @@
     // ─── Coverage tally rows (appended at bottom of sheet) ──────────────────
     function buildCoverageTally(dates, sim, counting, isDay, requirements) {
         const cov = dates.map(date => {
-            let rn=0,pct=0,chg=0,eb=0,es=0;
+            let rn=0,pct=0,chg=0,eb=0,es=0,mid=0;
             staffRoster.forEach(s => {
                 if (EXCLUDED_STAFF.includes(s.name)) return;
                 const sh = sim[s.name] ? sim[s.name][date] : '';
-                if (!counting.includes(sh)) return;
+                const counts = counting.includes(sh) || (isDay && sh === 'MID');
+                if (!counts) return;
                 if (s.job==='RN') { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
                 if (s.job==='PCT' || s.job==='HUC') pct++;
+                if (sh === 'MID') mid++;
             });
             const dow = parseDate(date).getDay();
             const isWE = isDay ? (dow===0||dow===6) : (dow===5||dow===6||dow===0);
-            return { rn, pct, chg, eb, es,
+            return { rn, pct, chg, eb, es, mid,
                 rnMin:  isWE ? requirements.RN_WE  : requirements.RN_WD,
-                pctMin: isWE ? requirements.PCT_WE : requirements.PCT_WD };
+                pctMin: isWE ? requirements.PCT_WE : requirements.PCT_WD,
+                midMin: isWE ? requirements.MID_WE : requirements.MID_WD };
         });
         return [
             [],
@@ -2273,8 +2315,10 @@
             [],
             ['RN Count',             requirements.RN_WD,  '','', ...cov.map(c=>c.rn)],
             ['RN +/-',               '',                  '','', ...cov.map(c=>c.rn-c.rnMin)],
-            ['PCT Count',            requirements.PCT_WD, '','', ...cov.map(c=>c.pct)],
-            ['PCT +/-',              '',                  '','', ...cov.map(c=>c.pct-c.pctMin)],
+            ['MID Count',            requirements.MID_WD, '','', ...cov.map(c=>c.mid)],
+            ['MID +/-',              '',                  '','', ...cov.map(c=>c.mid-c.midMin)],
+            ['PCT/HUC Count',        requirements.PCT_WD, '','', ...cov.map(c=>c.pct)],
+            ['PCT/HUC +/-',          '',                  '','', ...cov.map(c=>c.pct-c.pctMin)],
             ['Charge RN',            requirements.CN,     '','', ...cov.map(c=>c.chg)],
             ['Charge +/-',           '',                  '','', ...cov.map(c=>c.chg-requirements.CN)],
             ['ECMO Bedside (EB)',    requirements.EB,     '','', ...cov.map(c=>c.eb)],
