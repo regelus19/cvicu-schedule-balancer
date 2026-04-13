@@ -2707,9 +2707,8 @@
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
     }
 
-    
+    function downloadColoredTally() {
         if (!balancedResults || !rawData) { alert('⚠️ Run balancing first.'); return; }
-
         try {
             const makeTable = (label, result, counting, isDay) => {
                 const { simulation, dates } = result;
@@ -2718,9 +2717,10 @@
                     staffRoster.forEach(s => {
                         if (EXCLUDED_STAFF.includes(s.name)) return;
                         const sh = simulation[s.name] ? simulation[s.name][date] : '';
-                        if (!counting.includes(sh)) return;
+                        const counts = counting.includes(sh) || (isDay && sh==='MID');
+                        if (!counts) return;
                         if (s.job?.includes('RN')) { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
-                        if (s.job?.includes('PCT') || s.job==='HUC') pct++;
+                        if (s.job==='PCT'||s.job==='HUC') pct++;
                     });
                     const dow = parseDate(date).getDay();
                     const isWE = isDay ? (dow===0||dow===6) : (dow===5||dow===6||dow===0);
@@ -2731,7 +2731,6 @@
                         dow: parseDate(date).toLocaleDateString('en-US',{weekday:'short'})
                     };
                 });
-
                 const cell = (val, isNet, isRN) => {
                     let bg='', color='#000';
                     if (isNet) {
@@ -2742,13 +2741,11 @@
                     const s = bg ? `background:${bg};color:${color};font-weight:bold;` : '';
                     return `<td style="text-align:center;padding:3px 5px;border:1px solid #ccc;${s}">${isNet && val >= 0 ? '+'+val : val}</td>`;
                 };
-
                 const hdr = `<tr style="background:#1F3864;color:white;font-weight:bold;">
                     <td style="padding:4px 10px;border:1px solid #aaa;">Metric</td>
                     <td style="padding:4px 6px;border:1px solid #aaa;">Min</td>
                     ${dates.map((d,i) => `<td style="padding:2px 4px;font-size:11px;border:1px solid #aaa;text-align:center;">${cov[i].dow}<br>${d}</td>`).join('')}
                 </tr>`;
-
                 const rows = [
                     ['RN Count',   requirements.RN_WD,  cov.map(c=>c.rn),               false, false],
                     ['RN +/-',     '',                  cov.map(c=>c.rn-c.rnMin),         true,  true],
@@ -2765,36 +2762,23 @@
                     <td style="text-align:center;padding:3px 6px;border:1px solid #ccc;">${min}</td>
                     ${vals.map(v=>cell(v,isNet,isRN)).join('')}</tr>`
                 ).join('');
-
                 return `<h3 style="margin:24px 0 6px;color:#1F3864;">${label}</h3>
                 <table cellspacing="0" style="border-collapse:collapse;font-size:12px;font-family:Calibri,Arial;">${hdr}${rows}</table>`;
             };
-
-            let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-            <head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
-            <x:Name>Coverage Tally</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
-            </x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
-            </head><body style="font-family:Calibri,Arial;padding:20px;">
+            let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+            <head><meta charset="UTF-8"></head><body style="font-family:Calibri,Arial;padding:20px;">
             <h2 style="color:#1F3864;">🏥 CVICU Coverage Tally — Color Coded</h2>
             <p style="color:#666;font-size:12px;">🟢 Green = at/above minimum &nbsp;|&nbsp; 🔵 Blue = over cap (&gt;+4 RNs) &nbsp;|&nbsp; 🔴 Red = below minimum (gap)</p>`;
-
-            if (balancedResults.day)   html += makeTable('☀️ DAY SHIFT COVERAGE',   balancedResults.day,   ['7A','MID'], true);
-            if (balancedResults.night) html += makeTable('🌙 NIGHT SHIFT COVERAGE', balancedResults.night, ['7P'],       false);
+            if (balancedResults.day)   html += makeTable('☀️ DAY SHIFT',   balancedResults.day,   ['7A','MID'], true);
+            if (balancedResults.night) html += makeTable('🌙 NIGHT SHIFT', balancedResults.night, ['7P'],       false);
             html += '</body></html>';
-
-            // Use data URI instead of Blob for better browser compatibility
             const uri = 'data:application/vnd.ms-excel;charset=utf-8,' + encodeURIComponent(html);
             const a = document.createElement('a');
-            a.href = uri;
-            a.download = 'CVICU_Coverage_Tally_Colored.xls';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-
-        } catch(e) {
-            alert('Colored tally download failed: ' + e.message);
-        }
+            a.href = uri; a.download = 'CVICU_Coverage_Tally_Colored.xls';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        } catch(e) { alert('Colored tally download failed: ' + e.message); }
     }
+
 
     function addDayCoverageSummarySheet(wb) {
         const dates = rawData.dates.map(d => d.date);
