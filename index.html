@@ -349,7 +349,8 @@
                 <tbody>
                     <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">6T19Q x (with x)</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;color:#22543d;">7A</td><td style="padding:7px 8px;border:1px solid #90cdf4;"><strong>EXCEPTION — ANM working as Charge Nurse</strong></td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#22543d;font-weight:700;">✅ Yes (as CN)</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
                     <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">4:00 AM (Rowena only)</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;">ADMIN</td><td style="padding:7px 8px;border:1px solid #90cdf4;">Early admin/office shift (4am–12pm)</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
-                    <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">7:30 AM, 1:00 PM, other time strings</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;">ADMIN</td><td style="padding:7px 8px;border:1px solid #90cdf4;">ANM office/admin schedule (not floor)</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
+                    <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">7:30 AM (ANM office)</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;">7A</td><td style="padding:7px 8px;border:1px solid #90cdf4;">Translates by clinical window — ANM blocked from coverage by canAdd</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
+                    <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">10:45 AM (midshift staff)</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;">MID</td><td style="padding:7px 8px;border:1px solid #90cdf4;">10–2pm window → MID. Counts toward AM requirements &amp; midshift coverage</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#22543d;">✅ MID</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
                     <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">C {anything}</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;">PTO</td><td style="padding:7px 8px;border:1px solid #90cdf4;">Approved PTO for ANM</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
                     <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">PAYRO</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;">PAYRO</td><td style="padding:7px 8px;border:1px solid #90cdf4;">ANM payroll adjustment</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
                 </tbody>
@@ -1042,21 +1043,20 @@
                 // Open x = Education hours — NOT counted toward coverage or requirements
                 if (upper.startsWith('OPEN')) return 'EDU';
                 if (upper === 'PTO' || upper === 'HOL' || upper === 'FMLA' || upper === 'LOA' || upper === 'ORI' || upper === 'ADMIN' || upper === 'EDU' || upper === 'FLOAT' || upper === 'CALL' || upper === 'PRECEPT') return upper;
-                // Time strings (e.g. "7:30 AM", "1:00 PM") = ANM admin/office schedule
-                // These are NOT clinical shift codes — translate to ADMIN
-                // Only exception: 4:00 AM is already handled below
-                // Real clinical shifts always use MyTime codes (6t19q, 18t7q, etc.)
+                // Time strings — translate by clinical shift window
+                // ONLY 1–5 AM → ADMIN (Rowena's early office shift, ANM only)
+                // All other times use clinical windows — 10:45 AM → MID, 7:30 AM → 7A, etc.
                 const timeMatch = value.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
                 if (timeMatch) {
                     let hour = parseInt(timeMatch[1]);
                     const ampm = timeMatch[3].toUpperCase();
                     if (ampm === 'PM' && hour !== 12) hour += 12;
                     if (ampm === 'AM' && hour === 12) hour = 0;
-                    // 4:00 AM = Rowena's early admin shift → ADMIN
-                    if (hour >= 1 && hour <= 5) return 'ADMIN';
-                    // All other time strings = ANM admin/office schedule → ADMIN
-                    // (counts toward their requirements but NOT toward coverage balance)
-                    return 'ADMIN';
+                    if (hour >= 1  && hour <= 5)  return 'ADMIN'; // early office — ANMs only
+                    if (hour >= 6  && hour <= 9)  return '7A';    // day shift start
+                    if (hour >= 10 && hour <= 14) return 'MID';   // mid shift (10:45 AM, 12 PM, 1 PM)
+                    if (hour >= 15 && hour <= 23) return '7P';    // night shift start
+                    return '';
                 }
                 return '';
             };
