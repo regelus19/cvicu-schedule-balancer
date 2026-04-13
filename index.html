@@ -64,7 +64,7 @@
         <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v28</span></h1>
         <p class="subtitle">Upload MyTime export → Auto-balance → Download Excel/CSV</p>
         <div style="margin-top:10px;padding:8px 14px;background:#e6fffa;border-radius:6px;font-size:13px;color:#234e52;display:inline-block;">
-            ✅ v30 Fixes: PCT/HUC weekday/weekend split, RN cap enforced, MID shifts in day balance, MID weekend min 1, CN count fixed (min 3), PAYRO≠PTO, HUC included as US job (6W18H=7A, 18W6H=7P), master staff database hardwired
+            ✅ v30 Current: Weekend caps enforced (FT Day max 5, FT Night max 7) | HUC/US included (6W18H=7A, 18W6H=7P) | MID weekday min 2 / weekend min 1 | C codes=PTO | R codes=R/O | Open x=EDU | 10W22+12W00=MID | Score card | Colored schedule download | Master staff database hardwired (114 staff)
         </div>
     </div>
 
@@ -224,12 +224,32 @@
                     <div>Compliant staff: max 2 changes. Non-compliant: max 6. Blank fills are free (not counted as moves).</div>
                 </div>
                 <div>
-                    <div style="color:#fbd38d;font-weight:600;">PAYRO Code</div>
-                    <div>ANM payroll admin code (4am–12pm office shift). Counts as worked, shows as PAYRO not PTO.</div>
+                    <div style="color:#fbd38d;font-weight:600;">HUC / Unit Secretary</div>
+                    <div>Counted same as PCT for coverage. Listed as US in MyTime. Uses 6W18H (day) or 18W6H (night).</div>
                 </div>
                 <div>
-                    <div style="color:#fbd38d;font-weight:600;">RN Cap (no +5)</div>
-                    <div>Max overage: Sat +1, Sun +2, Mon/Tue/Wed/Fri +3, Thu +4. Hard ceiling enforced.</div>
+                    <div style="color:#fbd38d;font-weight:600;">Mid Shift Requirements</div>
+                    <div>Weekday min 2, Weekend min 1. Permanent: Hickman &amp; Kesbeh. 4 others rotate every 6 weeks.</div>
+                </div>
+                <div>
+                    <div style="color:#fbd38d;font-weight:600;">Weekend Caps (enforced)</div>
+                    <div>FT Day: max 5 weekends. FT Night: max 7. PT Day: max 4. PT Night: max 5. Prevents over-assigning.</div>
+                </div>
+                <div>
+                    <div style="color:#fbd38d;font-weight:600;">C codes = PTO</div>
+                    <div>ANY code starting with C (C 08:00, C 12:00, etc.) = approved PTO. Counts toward requirements, not coverage.</div>
+                </div>
+                <div>
+                    <div style="color:#fbd38d;font-weight:600;">R codes = R/O</div>
+                    <div>ANY code starting with R (R 12:00, R 23:59, etc.) = requested off. Does NOT count toward anything.</div>
+                </div>
+                <div>
+                    <div style="color:#fbd38d;font-weight:600;">Open x = Education</div>
+                    <div>Open x = EDU (education hours). Does NOT count toward coverage or requirements.</div>
+                </div>
+                <div>
+                    <div style="color:#fbd38d;font-weight:600;">ANM Exception</div>
+                    <div>ANMs never count toward coverage EXCEPT when they have 6T19Q x — that day they count as Charge Nurse.</div>
                 </div>
             </div>
         </div>
@@ -258,27 +278,29 @@
         <!-- CODE REFERENCE TABLE -->
         <div style="background:#1a365d;color:white;border-radius:8px;padding:14px 16px;margin-bottom:16px;">
             <div style="font-weight:700;font-size:16px;margin-bottom:4px;">📊 CODE REFERENCE — MyTime to Tool Translation</div>
-            <div style="font-size:12px;color:#90cdf4;">Use this reference to understand how MyTime codes translate and what counts toward requirements</div>
+            <div style="font-size:12px;color:#90cdf4;">Complete reference for all MyTime shift codes and how the tool translates them</div>
         </div>
 
         <!-- WORKING SHIFTS -->
         <div style="margin-bottom:16px;">
-            <div style="background:#22543d;color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px;">✅ WORKING SHIFTS (Count Toward Requirements)</div>
+            <div style="background:#22543d;color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px;">✅ WORKING SHIFTS (Count Toward Coverage &amp; Requirements)</div>
             <div style="overflow-x:auto;">
             <table style="width:100%;border-collapse:collapse;font-size:13px;">
                 <thead><tr style="background:#c6f6d5;">
                     <th style="padding:8px;text-align:left;border:1px solid #9ae6b4;">MyTime Code(s)</th>
                     <th style="padding:8px;text-align:left;border:1px solid #9ae6b4;">Tool Code</th>
                     <th style="padding:8px;text-align:left;border:1px solid #9ae6b4;">Description</th>
-                    <th style="padding:8px;text-align:left;border:1px solid #9ae6b4;">Counts Toward</th>
-                    <th style="padding:8px;border:1px solid #9ae6b4;">Weekend?</th>
-                    <th style="padding:8px;border:1px solid #9ae6b4;">Sunday?</th>
-                    <th style="padding:8px;border:1px solid #9ae6b4;">Total Shifts?</th>
+                    <th style="padding:8px;text-align:left;border:1px solid #9ae6b4;">Who Uses It</th>
+                    <th style="padding:8px;border:1px solid #9ae6b4;">Coverage?</th>
+                    <th style="padding:8px;border:1px solid #9ae6b4;">Req. Count?</th>
                 </tr></thead>
                 <tbody>
-                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">6T19Q, 6T19, 7A</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">7A</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Day Shift (7am–7pm)</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">RN, PCT, CN, EB, ES</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
-                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">10W2Q, 10W2, MID</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">MID</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Mid Shift (10am–10pm)</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">RN, PCT, CN, EB, ES</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
-                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">18T7Q, 18T7, 7P</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">7P</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Night Shift (7pm–7am)</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">RN, PCT, CN, EB, ES</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
+                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">6T19Q, 6T19Q x, 6T19, 7A</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">7A</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Day Shift (7am–7pm)</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">RN, PCT/HUC — <strong>6T19Q x = ANM working as CN (exception)</strong></td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
+                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">6W18H, 6W18</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">7A</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">HUC/US Day Shift</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">HUC (Unit Secretary/US) — day shift code</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
+                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">10W2Q, 10W2, 10W22, MID</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">MID</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Mid Shift (10am–10pm) — counts as day coverage</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Permanent: Hickman, Kesbeh. Rotating: 2 AM + 2 PM staff per 6 weeks</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅ Day</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
+                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">12W00, 12W</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">MID</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Mid Shift (12pm–12am) — counts as day coverage</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Rotating midshifters</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅ Day</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
+                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">18T7Q, 18T7, 7P</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">7P</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Night Shift (7pm–7am)</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">RN, PCT/HUC</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
+                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">18W6H, 18W6</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">7P</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">HUC/US Night Shift</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">HUC (Unit Secretary/US) — night shift code</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
                 </tbody>
             </table>
             </div>
@@ -286,50 +308,66 @@
 
         <!-- TIME OFF / NON-WORKING -->
         <div style="margin-bottom:16px;">
-            <div style="background:#742a2a;color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px;">❌ TIME OFF / NON-WORKING (Do NOT Count Toward Requirements)</div>
+            <div style="background:#742a2a;color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px;">❌ TIME OFF / NON-WORKING</div>
             <div style="overflow-x:auto;">
             <table style="width:100%;border-collapse:collapse;font-size:13px;">
                 <thead><tr style="background:#fed7d7;">
                     <th style="padding:8px;text-align:left;border:1px solid #fc8181;">MyTime Code(s)</th>
                     <th style="padding:8px;text-align:left;border:1px solid #fc8181;">Tool Code</th>
                     <th style="padding:8px;text-align:left;border:1px solid #fc8181;">Description</th>
-                    <th style="padding:8px;text-align:left;border:1px solid #fc8181;">Counts Toward</th>
+                    <th style="padding:8px;text-align:left;border:1px solid #fc8181;">Req. Count?</th>
+                    <th style="padding:8px;text-align:left;border:1px solid #fc8181;">Coverage?</th>
                     <th style="padding:8px;text-align:left;border:1px solid #fc8181;">Notes</th>
                 </tr></thead>
                 <tbody>
-                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">PTO</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">PTO</td><td style="padding:7px 8px;border:1px solid #fc8181;">Paid Time Off</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">SHIFT requirement ✅</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Pre-approved time off</td></tr>
-                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">VAC, VACATION</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">PTO</td><td style="padding:7px 8px;border:1px solid #fc8181;">Vacation</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">SHIFT requirement ✅</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Vacation leave</td></tr>
-                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">SICK</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">SICK</td><td style="padding:7px 8px;border:1px solid #fc8181;">Sick Leave</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;font-weight:600;">Nothing ❌</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Sick time — does NOT fulfill shift requirement</td></tr>
-                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">R/O, RO</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">R/O</td><td style="padding:7px 8px;border:1px solid #fc8181;">Requested Off</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;font-weight:600;">Nothing ❌</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Staff-requested day off</td></tr>
-                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">HOL, HOLIDAY</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">HOL</td><td style="padding:7px 8px;border:1px solid #fc8181;">Holiday</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;font-weight:600;">Nothing ❌</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Holiday leave</td></tr>
-                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">FMLA</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">FMLA</td><td style="padding:7px 8px;border:1px solid #fc8181;">FMLA Leave</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">SHIFT requirement ✅</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Family/Medical Leave</td></tr>
-                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">LOA</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">LOA</td><td style="padding:7px 8px;border:1px solid #fc8181;">Leave of Absence</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">SHIFT requirement ✅</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Extended leave</td></tr>
-                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">(blank/empty)</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">—</td><td style="padding:7px 8px;border:1px solid #fc8181;">No Shift Scheduled</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;font-weight:600;">Nothing ❌</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Available day, no shift assigned</td></tr>
-                    <tr style="background:#fffbeb;"><td style="padding:7px 8px;border:1px solid #fc8181;">PAYRO</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">PAYRO</td><td style="padding:7px 8px;border:1px solid #fc8181;">Payroll</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">AM/PM SHIFT requirement ✅</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#744210;font-style:italic;font-weight:600;">Payroll Time for ANMs — 8 Hour Shift</td></tr>
+                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">PTO, VAC, VACATION</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">PTO</td><td style="padding:7px 8px;border:1px solid #fc8181;">Paid Time Off / Vacation</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">✅ Yes</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Counts toward 18/12 minimum. Color: 🟦 Teal</td></tr>
+                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">C {time} — e.g. C 08:00, C 12:00</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">PTO</td><td style="padding:7px 8px;border:1px solid #fc8181;">Approved PTO (any C code)</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">✅ Yes</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">ANY code starting with C = approved PTO. Color: 🟦 Teal</td></tr>
+                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">SICK</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">SICK</td><td style="padding:7px 8px;border:1px solid #fc8181;">Sick Leave</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;font-weight:600;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Does NOT fulfill shift minimum</td></tr>
+                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">R/O, RO, R {time} — e.g. R 12:00, R 23:59</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">R/O</td><td style="padding:7px 8px;border:1px solid #fc8181;">Requested Off (any R code)</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;font-weight:600;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">ANY code starting with R = request off. Does NOT count toward anything. Color: 🟣 Purple</td></tr>
+                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">HOL, HOLIDAY</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">HOL</td><td style="padding:7px 8px;border:1px solid #fc8181;">Holiday</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;font-weight:600;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Holiday leave</td></tr>
+                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">Open x</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">EDU</td><td style="padding:7px 8px;border:1px solid #fc8181;">Education Hours</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;font-weight:600;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Education/training time — not coverage, not requirements</td></tr>
+                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">FMLA</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">FMLA</td><td style="padding:7px 8px;border:1px solid #fc8181;">FMLA Leave</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">✅ Yes</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Family/Medical Leave — counts toward minimum</td></tr>
+                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">LOA</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">LOA</td><td style="padding:7px 8px;border:1px solid #fc8181;">Leave of Absence</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">✅ Yes</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Extended leave — counts toward minimum</td></tr>
+                    <tr style="background:#fffbeb;"><td style="padding:7px 8px;border:1px solid #fc8181;">PAYRO</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">PAYRO</td><td style="padding:7px 8px;border:1px solid #fc8181;">ANM Payroll Code</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">✅ Yes</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#744210;font-style:italic;font-weight:600;">ANM payroll shift — NOT a PTO request. Color: 🔴 Red</td></tr>
                 </tbody>
             </table>
             </div>
         </div>
 
-        <!-- SPECIAL CODES -->
+        <!-- ANM SPECIAL CODES -->
         <div style="margin-bottom:16px;">
-            <div style="background:#744210;color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px;">⚠️ SPECIAL CODES (Check Unit Policy)</div>
+            <div style="background:#2c5282;color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px;">🔒 ANM CODES (Assistant Nurse Managers — Cruz, Rodriguez, Bruce, Sala, Wells)</div>
             <div style="overflow-x:auto;">
             <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                <thead><tr style="background:#fef3c7;">
-                    <th style="padding:8px;text-align:left;border:1px solid #fbd38d;">MyTime Code(s)</th>
-                    <th style="padding:8px;text-align:left;border:1px solid #fbd38d;">Tool Code</th>
-                    <th style="padding:8px;text-align:left;border:1px solid #fbd38d;">Description</th>
-                    <th style="padding:8px;text-align:left;border:1px solid #fbd38d;">Default Behavior</th>
-                    <th style="padding:8px;text-align:left;border:1px solid #fbd38d;">Notes</th>
+                <thead><tr style="background:#ebf8ff;">
+                    <th style="padding:8px;text-align:left;border:1px solid #90cdf4;">MyTime Code</th>
+                    <th style="padding:8px;text-align:left;border:1px solid #90cdf4;">Tool Code</th>
+                    <th style="padding:8px;text-align:left;border:1px solid #90cdf4;">Description</th>
+                    <th style="padding:8px;border:1px solid #90cdf4;">Coverage?</th>
+                    <th style="padding:8px;border:1px solid #90cdf4;">Req. Count?</th>
                 </tr></thead>
                 <tbody>
-                    <tr style="background:#fffff0;"><td style="padding:7px 8px;border:1px solid #fbd38d;">ORI, ORIENT</td><td style="padding:7px 8px;border:1px solid #fbd38d;font-weight:700;">ORI</td><td style="padding:7px 8px;border:1px solid #fbd38d;">Orientation</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#744210;">Counted as working; not included in balance</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#718096;font-style:italic;">New hire orientation</td></tr>
-                    <tr style="background:#fffff0;"><td style="padding:7px 8px;border:1px solid #fbd38d;">ADMIN<br><span style="font-size:11px;color:#744210;font-weight:600;">4:00 AM (early AM times)</span></td><td style="padding:7px 8px;border:1px solid #fbd38d;font-weight:700;">ADMIN</td><td style="padding:7px 8px;border:1px solid #fbd38d;">Administrative / Office Shift</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#22543d;font-weight:600;">Counts toward shift minimum ✅<br>NOT included in coverage balance</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#718096;font-style:italic;">Meetings, admin duties.<br><strong>4:00 AM = Rowena's 4am–12pm office shift</strong></td></tr>
-                    <tr style="background:#fffff0;"><td style="padding:7px 8px;border:1px solid #fbd38d;">EDU, EDUCATION</td><td style="padding:7px 8px;border:1px solid #fbd38d;font-weight:700;">EDU</td><td style="padding:7px 8px;border:1px solid #fbd38d;">Education Day</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#744210;">Counted as working; not included in balance</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#718096;font-style:italic;">Training, CEUs</td></tr>
-                    <tr style="background:#fffff0;"><td style="padding:7px 8px;border:1px solid #fbd38d;">FLOAT</td><td style="padding:7px 8px;border:1px solid #fbd38d;font-weight:700;">FLOAT</td><td style="padding:7px 8px;border:1px solid #fbd38d;">Float to Another Unit</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#744210;">Counted as working; not included in balance</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#718096;font-style:italic;">Working but not on this unit</td></tr>
-                    <tr style="background:#fffff0;"><td style="padding:7px 8px;border:1px solid #fbd38d;">CALL, ON-CALL</td><td style="padding:7px 8px;border:1px solid #fbd38d;font-weight:700;">CALL</td><td style="padding:7px 8px;border:1px solid #fbd38d;">On-Call</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#742a2a;">Not counted</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#718096;font-style:italic;">Available if needed</td></tr>
-                    <tr style="background:#fffff0;"><td style="padding:7px 8px;border:1px solid #fbd38d;">PRECEPT</td><td style="padding:7px 8px;border:1px solid #fbd38d;font-weight:700;">PRECEPT</td><td style="padding:7px 8px;border:1px solid #fbd38d;">Precepting</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#22543d;font-weight:600;">Counted as working; included in balance</td><td style="padding:7px 8px;border:1px solid #fbd38d;color:#718096;font-style:italic;">Training new staff while working</td></tr>
+                    <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">6T19Q x (with x)</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;color:#22543d;">7A</td><td style="padding:7px 8px;border:1px solid #90cdf4;"><strong>EXCEPTION — ANM working as Charge Nurse</strong></td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#22543d;font-weight:700;">✅ Yes (as CN)</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
+                    <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">4:00 AM (Rowena only)</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;">ADMIN</td><td style="padding:7px 8px;border:1px solid #90cdf4;">Early admin/office shift (4am–12pm)</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
+                    <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">7:30 AM, 1:00 PM, other time strings</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;">ADMIN</td><td style="padding:7px 8px;border:1px solid #90cdf4;">ANM office/admin schedule (not floor)</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
+                    <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">C {anything}</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;">PTO</td><td style="padding:7px 8px;border:1px solid #90cdf4;">Approved PTO for ANM</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
+                    <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">PAYRO</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;">PAYRO</td><td style="padding:7px 8px;border:1px solid #90cdf4;">ANM payroll adjustment</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
+                </tbody>
+            </table>
+            </div>
+        </div>
+
+        <!-- COLOR CODE LEGEND -->
+        <div style="margin-bottom:16px;">
+            <div style="background:#744210;color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px;">🎨 COLOR CODE LEGEND (Colored Schedule Download)</div>
+            <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <tbody>
+                    <tr><td style="padding:8px 12px;background:#E91E8C;color:white;font-weight:700;width:120px;">🩷 Pink</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">Shift added or moved by the balancer</td></tr>
+                    <tr><td style="padding:8px 12px;background:#7B2D8B;color:white;font-weight:700;">🟣 Purple</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">R/O — Requested off (any R code)</td></tr>
+                    <tr><td style="padding:8px 12px;background:#0097A7;color:white;font-weight:700;">🟦 Teal</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">PTO / Vacation / C codes (approved leave)</td></tr>
+                    <tr><td style="padding:8px 12px;background:#C62828;color:white;font-weight:700;">🔴 Red</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">ADMIN / PAYRO (office/admin time)</td></tr>
+                    <tr><td style="padding:8px 12px;background:#f7fafc;border:1px solid #e2e8f0;font-weight:700;">⬜ White</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">Self-scheduled working shift (unchanged)</td></tr>
                 </tbody>
             </table>
             </div>
@@ -339,14 +377,16 @@
         <div style="margin-bottom:16px;">
             <div style="background:#2d3748;color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px;">✏️ QUICK SUMMARY</div>
             <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                <tr style="background:#f0fff4;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What counts as a WORKING shift?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;">7A (Day), MID (Mid), and 7P (Night) shifts</td></tr>
-                <tr style="background:#fff;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Do MID shifts count toward weekends?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;">YES — MID shifts count toward ALL requirements</td></tr>
-                <tr style="background:#f0fff4;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Does PTO count toward shift requirement?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#22543d;font-weight:600;">YES — approved time off counts toward total shifts (18 FT / 12 PT)</td></tr>
-                <tr style="background:#fff5f5;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Does SICK count toward shift requirement?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#742a2a;font-weight:600;">NO — sick time does NOT fulfill shift minimum</td></tr>
-                <tr style="background:#fff;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Does R/O count toward any requirement?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#742a2a;">NO — does not count toward any requirement</td></tr>
-                <tr style="background:#f0fff4;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Does FMLA / LOA count?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#22543d;font-weight:600;">YES — protected leave counts toward shift requirement</td></tr>
-                <tr style="background:#fffbeb;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What is PAYRO?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#744210;font-weight:600;">Payroll time for ANMs (8 hr shift) — counts toward AM/PM shift requirement. NOT a PTO request.</td></tr>
-                <tr style="background:#ebf8ff;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What about Night shifts (7P)?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;">YES — counts toward requirements and weekend totals</td></tr>
+                <tr style="background:#f0fff4;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What counts as a WORKING shift?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;">7A (Day), MID/10W22/12W00 (Mid), 7P (Night), 6W18H/18W6H (HUC)</td></tr>
+                <tr style="background:#fff;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What does ANY "C" code mean?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#22543d;font-weight:600;">PTO — approved leave. Counts toward requirements but NOT coverage.</td></tr>
+                <tr style="background:#fff5f5;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What does ANY "R" code mean?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#742a2a;font-weight:600;">R/O — requested off. Does NOT count toward anything.</td></tr>
+                <tr style="background:#f0fff4;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Do MID shifts count toward day coverage?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;">YES — always counts toward day coverage, even for rotating PM nurses</td></tr>
+                <tr style="background:#fff;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Who are permanent midshifters?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;">Hickman, Erika and Kesbeh, Shroq O — always MID. 4 others rotate every 6 weeks.</td></tr>
+                <tr style="background:#f0fff4;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What is "Open x"?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#742a2a;font-weight:600;">Education hours (EDU) — does NOT count toward coverage or requirements.</td></tr>
+                <tr style="background:#fff;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Does PTO count toward shift requirement?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#22543d;font-weight:600;">YES — PTO/FMLA/LOA/C codes count toward 18 (FT) / 12 (PT) minimum</td></tr>
+                <tr style="background:#fff5f5;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Does SICK count?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#742a2a;font-weight:600;">NO — sick time does not fulfill shift minimum</td></tr>
+                <tr style="background:#fffbeb;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What does HUC mean?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;">Hospital Unit Clerk (listed as US in MyTime). Counted same as PCT for coverage. Uses 6W18H (day) or 18W6H (night).</td></tr>
+                <tr style="background:#fff;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">When does an ANM count toward coverage?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#22543d;font-weight:600;">ONLY when they have 6T19Q x (with the x) — they count as the Charge Nurse that day.</td></tr>
             </table>
         </div>
 
@@ -361,12 +401,13 @@
                 </table>
             </div>
             <div style="background:#ebf8ff;border:2px solid #90cdf4;border-radius:8px;padding:14px;">
-                <div style="font-weight:700;color:#2c5282;font-size:14px;margin-bottom:8px;">📅 Weekend Requirements</div>
+                <div style="font-weight:700;color:#2c5282;font-size:14px;margin-bottom:8px;">📅 Weekend Requirements &amp; CAPS</div>
                 <table style="width:100%;font-size:12px;border-collapse:collapse;">
-                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">FT Day</td><td style="padding:3px 6px;">5 weekends + 2 Sundays</td></tr>
-                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">FT Night</td><td style="padding:3px 6px;">7 weekend shifts</td></tr>
-                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">PT</td><td style="padding:3px 6px;">4 weekends + 2 Sundays (day)</td></tr>
-                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">Mid</td><td style="padding:3px 6px;">≤3 weekend shifts (cap, not floor)</td></tr>
+                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">FT Day</td><td style="padding:3px 6px;">Min 5 weekends (Sat/Sun) — <strong>Cap: max 5</strong></td></tr>
+                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">FT Night</td><td style="padding:3px 6px;">Min 7 weekend shifts (Fri/Sat/Sun) — <strong>Cap: max 7</strong></td></tr>
+                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">PT Day</td><td style="padding:3px 6px;">Min 4 weekends + 2 Sundays — <strong>Cap: max 4</strong></td></tr>
+                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">PT Night</td><td style="padding:3px 6px;">Min 5 weekend shifts — <strong>Cap: max 5</strong></td></tr>
+                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">MID (perm)</td><td style="padding:3px 6px;">Weekend cap ≤3 per 6 weeks</td></tr>
                     <tr><td style="padding:3px 6px;font-weight:600;">PRN</td><td style="padding:3px 6px;">No weekend requirement</td></tr>
                 </table>
             </div>
