@@ -2418,6 +2418,7 @@
 
     // ─── DAY SCHEDULE DOWNLOAD ───────────────────────────────────────────────
     function downloadDaySchedule() {
+        return downloadColoredSchedule('day');
         if (!balancedResults?.day) { alert('⚠️ Run Day shift balancing first.'); return; }
         try {
             const { simulation: sim, dates } = balancedResults.day;
@@ -2526,6 +2527,7 @@
 
     // ─── NIGHT SCHEDULE DOWNLOAD ─────────────────────────────────────────────
     function downloadNightSchedule() {
+        return downloadColoredSchedule('night');
         if (!balancedResults?.night) { alert('⚠️ Run Night shift balancing first.'); return; }
         try {
             const { simulation: sim, dates } = balancedResults.night;
@@ -2760,7 +2762,7 @@
     }
 
     // ─── COLORED SCHEDULE DOWNLOAD (HTML→Excel with pink/purple/teal/red) ───
-    function downloadColoredSchedule() {
+    function downloadColoredSchedule(onlyMode = 'both') {
         if (!balancedResults || !rawData) { alert('⚠️ Run balancing first.'); return; }
 
         const addedDates = {}; // track which staff+date combos were added/moved by balancer
@@ -2879,16 +2881,17 @@
         <body style="font-family:Calibri,Arial;padding:16px;">
         <h1 style="color:#1a365d;">🏥 CVICU Balanced Schedule — Color Coded</h1>`;
 
-        if (balancedResults.day)
+        if (balancedResults.day && onlyMode !== 'night')
             html += makeSheet('☀️ DAY SHIFT', balancedResults.day, ['7A','MID','ANM_CN'], true);
-        if (balancedResults.night)
+        if (balancedResults.night && onlyMode !== 'day')
             html += makeSheet('🌙 NIGHT SHIFT', balancedResults.night, ['7P'], false);
 
         html += '</body></html>';
 
         const uri = 'data:application/vnd.ms-excel;charset=utf-8,' + encodeURIComponent(html);
         const a = document.createElement('a');
-        a.href = uri; a.download = 'CVICU_Colored_Schedule.xls';
+        const fileLabel = onlyMode === 'day' ? 'Day' : onlyMode === 'night' ? 'Night' : 'Combined';
+        a.href = uri; a.download = `CVICU_${fileLabel}_Colored_Schedule.xls`;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
     }
 
@@ -2918,12 +2921,16 @@
                         dow: parseDate(date).toLocaleDateString('en-US',{weekday:'short'})
                     };
                 });
-                const cell = (val, isNet, isRN) => {
+                const cell = (val, isNet, isRN, minimum = null, maximum = null) => {
                     let bg='', color='#000';
                     if (isNet) {
                         if (val < 0)             { bg='#FF0000'; color='#fff'; }
                         else if (isRN && val > 4){ bg='#4472C4'; color='#fff'; }
                         else                     { bg='#92D050'; color='#fff'; }
+                    } else if (typeof minimum === 'number') {
+                        if (val < minimum) { bg='#FF0000'; color='#fff'; }
+                        else if ((maximum !== null && val > maximum) || (maximum === null && val > minimum)) { bg='#4472C4'; color='#fff'; }
+                        else { bg='#92D050'; color='#fff'; }
                     }
                     const s = bg ? `background:${bg};color:${color};font-weight:bold;` : '';
                     return `<td style="text-align:center;padding:3px 5px;border:1px solid #ccc;${s}">${isNet && val >= 0 ? '+'+val : val}</td>`;
@@ -2934,20 +2941,22 @@
                     ${dates.map((d,i) => `<td style="padding:2px 4px;font-size:11px;border:1px solid #aaa;text-align:center;">${cov[i].dow}<br>${d}</td>`).join('')}
                 </tr>`;
                 const rows = [
-                    ['RN Count',   requirements.RN_WD,  cov.map(c=>c.rn),               false, false],
-                    ['RN +/-',     '',                  cov.map(c=>c.rn-c.rnMin),         true,  true],
-                    ['PCT Count',  requirements.PCT_WD, cov.map(c=>c.pct),               false, false],
-                    ['PCT +/-',    '',                  cov.map(c=>c.pct-c.pctMin),       true,  false],
-                    ['Charge RN',  requirements.CN,     cov.map(c=>c.chg),               false, false],
-                    ['Charge +/-', '',                  cov.map(c=>c.chg-requirements.CN),true,  false],
-                    ['EB Count',   requirements.EB,     cov.map(c=>c.eb),                false, false],
-                    ['EB +/-',     '',                  cov.map(c=>c.eb-requirements.EB), true,  false],
-                    ['ES Count',   requirements.ES,     cov.map(c=>c.es),                false, false],
-                    ['ES +/-',     '',                  cov.map(c=>c.es-requirements.ES), true,  false],
-                ].map(([lbl,min,vals,isNet,isRN]) =>
+                    ['RN Count',   requirements.RN_WD,  cov.map(c=>c.rn),                 false, false, 'dailyRN'],
+                    ['RN +/-',     '',                  cov.map(c=>c.rn-c.rnMin),          true,  true,  null],
+                    ['PCT Count',  requirements.PCT_WD, cov.map(c=>c.pct),                false, false, 'dailyPCT'],
+                    ['PCT +/-',    '',                  cov.map(c=>c.pct-c.pctMin),        true,  false, null],
+                    ['Charge RN',  requirements.CN,     cov.map(c=>c.chg),                false, false, 'cn'],
+                    ['Charge +/-', '',                  cov.map(c=>c.chg-requirements.CN), true,  false, null],
+                    ['EB Count',   requirements.EB,     cov.map(c=>c.eb),                 false, false, 'eb'],
+                    ['EB +/-',     '',                  cov.map(c=>c.eb-requirements.EB),  true,  false, null],
+                    ['ES Count',   requirements.ES,     cov.map(c=>c.es),                 false, false, 'es'],
+                    ['ES +/-',     '',                  cov.map(c=>c.es-requirements.ES),  true,  false, null],
+                ].map(([lbl,min,vals,isNet,isRN,metric]) =>
                     `<tr><td style="font-weight:600;padding:3px 10px;border:1px solid #ccc;white-space:nowrap;">${lbl}</td>
                     <td style="text-align:center;padding:3px 6px;border:1px solid #ccc;">${min}</td>
-                    ${vals.map(v=>cell(v,isNet,isRN)).join('')}</tr>`
+                    ${vals.map((v,i)=>cell(v,isNet,isRN,
+                        metric==='dailyRN'?cov[i].rnMin:metric==='dailyPCT'?cov[i].pctMin:metric?requirements[metric.toUpperCase()]:null,
+                        metric==='cn'?CN_MAX:null)).join('')}</tr>`
                 ).join('');
                 return `<h3 style="margin:24px 0 6px;color:#1F3864;">${label}</h3>
                 <table cellspacing="0" style="border-collapse:collapse;font-size:12px;font-family:Calibri,Arial;">${hdr}${rows}</table>`;
