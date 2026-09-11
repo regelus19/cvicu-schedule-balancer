@@ -1958,6 +1958,36 @@
         };
     }
 
+    function getDailyClinicalTotals(date, simulation, mode) {
+        const isDay = mode === 'day';
+        let rn = 0, cnQualified = 0, es = 0;
+        Object.values(simulation).forEach(staff => {
+            if (EXCLUDED_STAFF.includes(staff.name)) return;
+            const shift = staff[date];
+            const counts = isDay ? ['7A','MID','ANM_CN'].includes(shift) : shift === '7P';
+            if (!counts) return;
+            if (shift === 'ANM_CN') { rn++; cnQualified++; return; }
+            if (staff.job === 'RN') {
+                rn++;
+                if (staff.skill?.includes('CN')) cnQualified++;
+                if (staff.skill?.includes('ES')) es++;
+            }
+        });
+        return { rn, cn: Math.min(cnQualified, CN_MAX), cnQualified, es };
+    }
+
+    function coverageStatusStyle(value, minimum, maximum = null) {
+        if (value < minimum) return 'background:#e53e3e;color:white;font-weight:700;';
+        if ((maximum !== null && value > maximum) || (maximum === null && value > minimum)) return 'background:#3182ce;color:white;font-weight:700;';
+        return 'background:#38a169;color:white;font-weight:700;';
+    }
+
+    function staffCommitmentStatus(staff, simulation, dates) {
+        if (staff.type === 'PRN' || ANM_STAFF.includes(staff.name)) return { total: dates.filter(d => countsTowardCommitment(simulation[staff.name]?.[d])).length, required: null };
+        const required = staff.type === 'PT' ? 12 : 18;
+        return { total: dates.filter(d => countsTowardCommitment(simulation[staff.name]?.[d])).length, required };
+    }
+
     function detectShiftType(staffSchedule) {
         const dayCodes=['7A','10A','12P','MID','ANM_CN'], nightCodes=['7P'];
         let dayCount=0, nightCount=0;
@@ -2297,13 +2327,23 @@
         const roles = mode === 'day' ? ['RN','PCT','CN','EB','ES','MID'] : ['RN','PCT','CN','EB','ES'];
         dates.forEach(date => { const gaps=getGaps(date,simulation,countingCodes); if (roles.every(role => (gaps[role] || 0) === 0)) metDays++; });
         const complete = metDays === dates.length;
+        const daily = dates.map(date => ({ date, ...getDailyClinicalTotals(date, simulation, mode) }));
+        const totalRow = (label, key, minForDate, maximum = null) => `<tr><td style="position:sticky;left:0;background:#edf2f7;font-weight:700;">${label}</td>${daily.map(item => {
+            const min = typeof minForDate === 'function' ? minForDate(item.date) : minForDate;
+            return `<td style="${coverageStatusStyle(item[key], min, maximum)}text-align:center;min-width:52px;">${item[key]}</td>`;
+        }).join('')}</tr>`;
+        const totalsTable = `<div style="overflow-x:auto;margin-top:12px;"><table class="staff-table"><thead><tr><th style="position:sticky;left:0;z-index:1;">Daily total</th>${dates.map(d=>`<th style="min-width:52px;text-align:center;">${parseDate(d).toLocaleDateString('en-US',{month:'numeric',day:'numeric'})}</th>`).join('')}</tr></thead><tbody>
+            ${totalRow('Total RN','rn',d=>getRnMin(d,mode),null)}
+            ${totalRow('Assigned CN','cn',requirements.CN,CN_MAX)}
+            ${totalRow('Total ES','es',requirements.ES,null)}
+        </tbody></table><div style="font-size:11px;color:#718096;margin-top:6px;">🟩 Meets minimum &nbsp; 🟦 Above minimum &nbsp; 🟥 Below minimum</div></div>`;
         return `<div class="alert ${complete?'alert-success':'alert-warning'}"><strong>${complete?'✅':'⚠️'} ${title} ${complete?'Fully Balanced':'Partially Balanced'}</strong><br>${moves} shifts added • ${metDays}/${dates.length} days meet all enabled minimums</div>
         <div class="stats-grid">
             <div class="stat-card"><div class="stat-value">${metDays}/${dates.length}</div><div class="stat-label">Days Met</div></div>
             <div class="stat-card"><div class="stat-value">${moves}</div><div class="stat-label">Shifts Added</div></div>
             <div class="stat-card"><div class="stat-value">${staffRoster.length}</div><div class="stat-label">Staff</div></div>
             <div class="stat-card"><div class="stat-value">${dates.length}</div><div class="stat-label">Days</div></div>
-        </div>`;
+        </div>${totalsTable}`;
     }
 
 
@@ -2802,6 +2842,10 @@
                         return `<td ${cellStyle(v, s.name, d, isANM)}>${v}</td>`;
                     }).join('');
                     const skillDisp = [s.skill?.includes('ES')?'ES':'',s.skill?.includes('EB')?'EB':'',s.skill?.includes('CN')?'CHG':''].filter(Boolean).join('/');
+                    const commitment = staffCommitmentStatus(s, simulation, dates);
+                    const totalStyle = commitment.required === null
+                        ? 'background:#edf2f7;color:#4a5568;font-weight:700;'
+                        : coverageStatusStyle(commitment.total, commitment.required);
                     html += `<tr>
                         <td style="padding:3px 6px;border:1px solid #ddd;white-space:nowrap;font-size:11px;${isANM?'background:#fff9e6;font-weight:bold;':''}">${s.name}</td>
                         <td style="padding:3px 4px;border:1px solid #ddd;font-size:11px;">${isANM?'AMGR':s.job}</td>
@@ -2810,10 +2854,22 @@
                         ${cells}
                         <td style="padding:3px 4px;border:1px solid #ddd;text-align:center;font-size:11px;">${we}</td>
                         <td style="padding:3px 4px;border:1px solid #ddd;text-align:center;font-size:11px;">${worked}</td>
-                        <td style="padding:3px 4px;border:1px solid #ddd;text-align:center;font-size:11px;">${worked}</td>
+                        <td style="padding:3px 4px;border:1px solid #ddd;text-align:center;font-size:11px;${totalStyle}">${commitment.total}${commitment.required===null?'':' / '+commitment.required}</td>
                     </tr>`;
                 });
             });
+            const daily = dates.map(date => ({ date, ...getDailyClinicalTotals(date, simulation, isDay?'day':'night') }));
+            const coverageRow = (label, key, minForDate, maximum = null) => `<tr>
+                <td colspan="4" style="background:#edf2f7;font-weight:700;padding:4px 8px;border:1px solid #aaa;">${label}</td>
+                ${daily.map(item => {
+                    const minimum = typeof minForDate === 'function' ? minForDate(item.date) : minForDate;
+                    return `<td style="${coverageStatusStyle(item[key], minimum, maximum)}text-align:center;padding:4px;border:1px solid #aaa;">${item[key]}</td>`;
+                }).join('')}
+                <td colspan="3" style="background:#edf2f7;border:1px solid #aaa;"></td>
+            </tr>`;
+            html += coverageRow('TOTAL RN', 'rn', d => getRnMin(d, isDay?'day':'night'));
+            html += coverageRow('ASSIGNED CN', 'cn', requirements.CN, CN_MAX);
+            html += coverageRow('TOTAL ES', 'es', requirements.ES);
             html += '</table>';
             return html;
         };

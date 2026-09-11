@@ -66,6 +66,13 @@ assert.ok(balanced.unresolved.totalPositions > 0);
 assert.equal(balanced.requirements.CN, 2);
 assert.ok(vm.runInContext('generateUnresolvedDeficitsHTML(getUnresolvedDeficits())', context).includes('Draft Projection'));
 assert.ok(vm.runInContext("scheduleStatus='closed'; generateUnresolvedDeficitsHTML(getUnresolvedDeficits())", context).includes('Partially Balanced'));
+const blankBeforeBalance = result.staff.filter(staff => Object.values(staff.shifts).filter(token => ['7A','7P','MID','PTO','FMLA','LOA'].includes(token)).length === 0);
+assert.ok(blankBeforeBalance.length > 0, 'production export should contain blank schedules while self-scheduling is open');
+assert.ok(blankBeforeBalance.some(staff => {
+  const simulation = staff.shift === 'PM' ? balanced.nightSimulation : balanced.daySimulation;
+  return Object.values(simulation[staff.name] || {}).some(token => ['7A','7P','MID'].includes(token));
+}), 'open-mode balancing should assign eligible staff who started with blank schedules');
+assert.ok(vm.runInContext("coverageStatusStyle(1,2,4).includes('#e53e3e') && coverageStatusStyle(2,2,4).includes('#38a169') && coverageStatusStyle(5,2,4).includes('#3182ce')", context));
 
 const coverage = (simulation, mode) => balanced.dates.map(date => {
   let rn = 0, pct = 0, cn = 0, eb = 0, es = 0, mid = 0;
