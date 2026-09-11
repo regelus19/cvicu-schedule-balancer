@@ -861,15 +861,20 @@
         const dow = parseDate(dateStr).getDay();
         return dow === 0 || dow === 6;
     }
-    function getRnMin(dateStr)  { return isWeekendDate(dateStr) ? requirements.RN_WE  : requirements.RN_WD;  }
-    function getPctMin(dateStr) { return isWeekendDate(dateStr) ? requirements.PCT_WE : requirements.PCT_WD; }
-    function getRnMax(dateStr) {
+    function isWeekendForMode(dateStr, mode = 'day') {
+        const dow = parseDate(dateStr).getDay();
+        return mode === 'night' ? [0, 5, 6].includes(dow) : [0, 6].includes(dow);
+    }
+    function getRnMin(dateStr, mode = 'day')  { return isWeekendForMode(dateStr, mode) ? requirements.RN_WE  : requirements.RN_WD;  }
+    function getPctMin(dateStr, mode = 'day') { return isWeekendForMode(dateStr, mode) ? requirements.PCT_WE : requirements.PCT_WD; }
+    function getRnMax(dateStr, mode = 'day') {
         const dow = parseDate(dateStr).getDay();
         const HARD_CEILING = 4;
-        if (dow === 6) return getRnMin(dateStr) + Math.min(requirements.CAP_SAT, HARD_CEILING);
-        if (dow === 0) return getRnMin(dateStr) + Math.min(requirements.CAP_SUN, HARD_CEILING);
-        if (dow === 4) return getRnMin(dateStr) + Math.min(requirements.CAP_THU, HARD_CEILING);
-        return getRnMin(dateStr) + Math.min(requirements.CAP_WD, HARD_CEILING);
+        const minimum = getRnMin(dateStr, mode);
+        if (dow === 6) return minimum + Math.min(requirements.CAP_SAT, HARD_CEILING);
+        if (dow === 0) return minimum + Math.min(requirements.CAP_SUN, HARD_CEILING);
+        if (dow === 4) return minimum + Math.min(requirements.CAP_THU, HARD_CEILING);
+        return minimum + Math.min(requirements.CAP_WD, HARD_CEILING);
     }
     function updateCapDisplays() {
         const wd  = document.getElementById('rnWdMaxDisplay');  if (wd)  wd.textContent  = requirements.RN_WD + requirements.CAP_WD;
@@ -978,34 +983,134 @@
         reader.readAsArrayBuffer(file);
     }
 
+    function normalizeMyTimeDate(cell) {
+        const value = String(cell || '').replace(/Sun|Mon|Tue|Wed|Thu|Fri|Sat/gi, '').replace(/\s+/g, ' ').trim();
+        const match = value.match(/^(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(\d{4})$/);
+        if (!match) return '';
+        const normalized = `${parseInt(match[1])}/${parseInt(match[2])}/ ${match[3]}`;
+        const date = parseDate(normalized);
+        return Number.isNaN(date.getTime()) ? '' : normalized;
+    }
+
+    function parseAuxiliaryCode(code) {
+        if (code === 'PAYRO' || code.startsWith('PAYRO')) return 'PAYRO';
+        if (code.includes('VAC') || /^C(?:$|[\s_])/.test(code)) return 'PTO';
+        if (code.includes('SICK')) return 'SICK';
+        if (code.includes('R/O') || code === 'RO' || /^R(?:[\s_]|\d)/.test(code)) return 'R/O';
+        if (code.startsWith('OPEN') || /^E(?:$|[\s_])/.test(code) || code.startsWith('TEACH') || code.startsWith('PRECE') || code.startsWith('SKIN')) return 'EDU';
+        if (['PTO', 'HOL', 'FMLA', 'LOA', 'ORI', 'ADMIN', 'EDU', 'FLOAT', 'CALL', 'PRECEPT'].includes(code)) return code;
+        return '';
+    }
+
+    function parseClinicalShiftCode(code) {
+        if (code === '7A' || code === '7P' || code === 'MID') return code;
+        if (code.includes('6T19') || code === '6119') return '7A';
+        if (code.includes('6W18')) return '7A';
+        if (code.includes('18T7') || code === '1817') return '7P';
+        if (code.includes('18W6')) return '7P';
+        if (code.includes('10W2') || code === '10W22' || code === '12W00' || code.startsWith('12W')) return 'MID';
+        const timeMatch = code.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)(?:\s*X)?$/i);
+        if (!timeMatch) return '';
+        let hour = parseInt(timeMatch[1]);
+        const ampm = timeMatch[3].toUpperCase();
+        if (ampm === 'PM' && hour !== 12) hour += 12;
+        if (ampm === 'AM' && hour === 12) hour = 0;
+        if (hour >= 1 && hour <= 5) return 'ADMIN';
+        if (hour >= 6 && hour <= 9) return '7A';
+        if (hour >= 10 && hour <= 14) return 'MID';
+        if (hour >= 15 && hour <= 23) return '7P';
+        return '';
+    }
+
+    function isClinicalRawToken(rawToken, isANM) {
+        const code = String(rawToken || '').trim().toUpperCase();
+        if (isANM) return /^6T19Q\s*X$/.test(code) || /^6:45\s*AM\s*X$/.test(code);
+        return ['7A', '7P', 'MID'].includes(parseClinicalShiftCode(code));
+    }
+
+    function parseShiftCode(rawCode, isANM) {
+        const code = String(rawCode || '').trim().toUpperCase();
+        if (!code) return '';
+        const auxiliary = parseAuxiliaryCode(code);
+        if (auxiliary) return auxiliary;
+        if (isANM) return isClinicalRawToken(code, true) ? 'ANM_CN' : 'ANM_ADMIN';
+        return parseClinicalShiftCode(code);
+    }
+
+    function extractShiftFromBlock(rowCells, isANM) {
+        const rawTokens = [];
+        (rowCells || []).forEach(cell => {
+            String(cell || '').split(/\r?\n/).map(token => token.trim()).filter(Boolean).forEach(token => rawTokens.push(token));
+        });
+        const clinicalToken = rawTokens.find(token => isClinicalRawToken(token, isANM));
+        if (clinicalToken) return parseShiftCode(clinicalToken, isANM);
+        for (const token of rawTokens) {
+            const parsed = parseShiftCode(token, isANM);
+            if (parsed) return parsed;
+        }
+        return '';
+    }
+
+    function extractDateColumnBlocks(dateRow) {
+        const anchors = [];
+        (dateRow || []).forEach((cell, col) => {
+            const date = normalizeMyTimeDate(cell);
+            if (date) anchors.push({ date, startCol: col });
+        });
+        return anchors.map((anchor, index) => ({
+            ...anchor,
+            endCol: index + 1 < anchors.length ? anchors[index + 1].startCol : anchor.startCol + 3
+        }));
+    }
+
+    function calendarDayNumber(dateStr) {
+        const date = parseDate(dateStr);
+        return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
+    }
+
+    function validateMyTimeWorkbook(data) {
+        const errors = [];
+        const warnings = [];
+        if (!Array.isArray(data) || data.length < 10) {
+            return { isValid: false, errors: ['Workbook contains insufficient rows for a valid MyTime layout.'], warnings };
+        }
+        const dateRowIndex = [7, 6].find(index => extractDateColumnBlocks(data[index]).length > 0);
+        if (dateRowIndex === undefined) {
+            return { isValid: false, errors: ['Could not locate valid date headers at row 8 or row 7.'], warnings };
+        }
+        const dateBlocks = extractDateColumnBlocks(data[dateRowIndex]);
+        if (dateBlocks.length !== 42) errors.push(`Expected exactly 42 calendar day blocks (6 weeks); found ${dateBlocks.length}.`);
+        const uniqueDates = new Set(dateBlocks.map(block => parseDate(block.date).getTime()));
+        if (uniqueDates.size !== dateBlocks.length) errors.push('Schedule contains duplicate date headers.');
+        for (let index = 1; index < dateBlocks.length; index++) {
+            if (calendarDayNumber(dateBlocks[index].date) - calendarDayNumber(dateBlocks[index - 1].date) !== 1) {
+                errors.push('Schedule dates are not consecutive calendar days.');
+                break;
+            }
+        }
+        const staffRows = data.slice(dateRowIndex + 1).filter(row => {
+            const name = String(row?.[0] || '').trim();
+            return name.includes(',') && !name.includes('Employee') && !name.includes('866') && !name.includes('──');
+        });
+        staffRows.forEach(row => {
+            if (!String(row[5] || '').trim()) warnings.push(`Staff row "${String(row[0]).trim()}" is missing Job metadata in column F.`);
+        });
+        if (staffRows.length === 0) errors.push('No employee rows in Last, First format were found.');
+        else if (staffRows.length < 50) warnings.push(`Only ${staffRows.length} staff rows were found; confirm the export is not filtered.`);
+        return { isValid: errors.length === 0, errors, warnings, dateRowIndex, dateBlocks };
+    }
+
     function parseMyTimeExport(workbook) {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-        let dateRow = data[7] || [];
-        const dates = [];
-
-        dateRow.forEach((cell, idx) => {
-            const cellStr = String(cell);
-            if (cell && cellStr.includes('/') && cellStr.match(/\d+\/\d+/)) {
-                const dateStr = cellStr.replace(/Sun|Mon|Tue|Wed|Thu|Fri|Sat/gi, '').replace(/\n/g, ' ').trim();
-                dates.push({ col: idx, date: dateStr });
-            }
-        });
-
-        if (dates.length === 0) {
-            dateRow = data[6] || [];
-            dateRow.forEach((cell, idx) => {
-                const cellStr = String(cell);
-                if (cell && cellStr.includes('/') && cellStr.match(/\d+\/\d+/)) {
-                    const dateStr = cellStr.replace(/Sun|Mon|Tue|Wed|Thu|Fri|Sat/gi, '').replace(/\n/g, ' ').trim();
-                    dates.push({ col: idx, date: dateStr });
-                }
-            });
-        }
+        const validation = validateMyTimeWorkbook(data);
+        if (!validation.isValid) throw new Error(validation.errors.join('\n'));
+        if (validation.warnings.length) alert(`MyTime import warning:\n\n${validation.warnings.join('\n')}`);
+        const dates = validation.dateBlocks.map(block => ({ col: block.startCol, date: block.date, endCol: block.endCol }));
 
         staffRoster = [];
-        for (let i = 8; i < data.length; i++) {
+        for (let i = validation.dateRowIndex + 1; i < data.length; i++) {
             const row = data[i];
             const name = row[0];
             const job = row[5]; // keep for job field parsing below
@@ -1016,67 +1121,16 @@
             if (name.includes('Employee') || name.includes('866') || name.includes('──')) continue;
 
             const shifts = {};
-            const translateMyTimeCode = (value) => {
-                if (!value || value === '') return '';
-                const upper = String(value).toUpperCase().trim();
-                if (upper === '7A' || upper === '7P' || upper === 'MID') return upper;
-                if (upper.includes('6T19') || upper === '6T19Q' || upper === '6119') return '7A';
-                if (upper.includes('6W18') || upper === '6W18H') return '7A';  // HUC day shift code
-                if (upper.includes('18T7') || upper === '18T7Q' || upper === '1817') return '7P';
-                if (upper.includes('18W6') || upper === '18W6H') return '7P';  // HUC night shift code
-                if (upper.includes('10W2') || upper === '10W2Q' || upper === '10W22') return 'MID'; // 10W22 = 10am-10pm midshift
-                if (upper === '12W00' || upper.startsWith('12W')) return 'MID'; // 12W00 = 12pm-12am midshift
-                // FIX v28: PAYRO is a PAYROLL ADJUSTMENT CODE, NOT a PTO request.
-                // It will block scheduling (handled in canAdd) but shows as PAYRO in output.
-                if (upper === 'PAYRO' || upper.startsWith('PAYRO')) return 'PAYRO';
-                // Per code reference: VAC/VACATION = PTO (counts toward shift requirement)
-                // SICK = SICK (counts toward NOTHING — sick time ≠ approved leave)
-                if (upper.includes('VAC')) return 'PTO';
-                if (upper.includes('SICK')) return 'SICK'; // Separate from PTO — does NOT count toward requirements
-                if (upper.includes('R/O') || upper === 'RO') return 'R/O';
-                // R {time} = Requested Off (R 12:00, R 23:59, R 24:00)
-                // Does NOT count toward shift requirements or coverage
-                if (/^R[\s_]/.test(upper) || /^R\d/.test(upper)) return 'R/O';
-                // C {anything} = PTO (Approved time off — counts toward requirements but NOT coverage)
-                // Examples: C 08:00, C 12:00, C 04:00 — all mean approved PTO for that staff member
-                if (/^C[\s_]/.test(upper) || upper === 'C') return 'PTO';
-                // Open x = Education hours — NOT counted toward coverage or requirements
-                if (upper.startsWith('OPEN')) return 'EDU';
-                if (upper === 'PTO' || upper === 'HOL' || upper === 'FMLA' || upper === 'LOA' || upper === 'ORI' || upper === 'ADMIN' || upper === 'EDU' || upper === 'FLOAT' || upper === 'CALL' || upper === 'PRECEPT') return upper;
-                // Time strings — translate by clinical shift window
-                // ONLY 1–5 AM → ADMIN (Rowena's early office shift, ANM only)
-                // All other times use clinical windows — 10:45 AM → MID, 7:30 AM → 7A, etc.
-                const timeMatch = value.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-                if (timeMatch) {
-                    let hour = parseInt(timeMatch[1]);
-                    const ampm = timeMatch[3].toUpperCase();
-                    if (ampm === 'PM' && hour !== 12) hour += 12;
-                    if (ampm === 'AM' && hour === 12) hour = 0;
-                    if (hour >= 1  && hour <= 5)  return 'ADMIN'; // early office — ANMs only
-                    if (hour >= 6  && hour <= 9)  return '7A';    // day shift start
-                    if (hour >= 10 && hour <= 14) return 'MID';   // mid shift (10:45 AM, 12 PM, 1 PM)
-                    if (hour >= 15 && hour <= 23) return '7P';    // night shift start
-                    return '';
-                }
-                return '';
-            };
+            const isANM = ANM_STAFF.includes(name);
 
             // CRITICAL FIX v28: Bounded offset search
             // OLD BUG: searching offsets +1,+2,+3 caused blank days to steal the NEXT date's shift.
             // Example: Cruz off on 4/19 (blank at col 8) → old code grabbed 4/20's shift at col 10.
             // Example: Cruz off on 5/02 (blank at col 38) → old code grabbed 5/03's PAYRO at col 40.
             // FIX: Only search within the current date's column block (up to but not including the next date's column).
-            dates.forEach((d, dateIdx) => {
-                const nextDateCol = dateIdx + 1 < dates.length ? dates[dateIdx + 1].col : d.col + 3;
-                const maxOffset = nextDateCol - d.col; // Stay within this date's columns only
-                let shift = '';
-                for (let offset = 1; offset < maxOffset; offset++) {
-                    const candidate = row[d.col + offset];
-                    if (candidate && String(candidate).trim() !== '') {
-                        shift = translateMyTimeCode(candidate);
-                        break;
-                    }
-                }
+            dates.forEach(d => {
+                const block = row.slice(d.col + 1, d.endCol);
+                const shift = extractShiftFromBlock(block, isANM);
                 if (shift) shifts[d.date] = shift;
             });
 
@@ -1173,9 +1227,7 @@
             const isANM = ANM_STAFF.includes(staff.name);
             const disabled = isANM ? 'disabled' : '';
             const anmLabel = isANM ? ' (ANM - Always Protected)' : '';
-            const submittedDays = Object.keys(staff.shifts||{}).filter(date => {
-                const value = staff.shifts[date]; return value && String(value).trim() !== '';
-            }).length;
+            const submittedDays = Object.values(staff.shifts || {}).filter(countsTowardCommitment).length;
             html += `<div style="padding:8px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;${isANM?'background:#fff9e6;':''}">
                 <input type="checkbox" id="protect_${idx}" value="${staff.name}" ${disabled} ${isANM?'checked':''} onchange="updateProtectionList()" style="margin-right:8px;">
                 <label for="protect_${idx}" style="flex:1;cursor:${isANM?'not-allowed':'pointer'};user-select:none;">
@@ -1321,6 +1373,14 @@
         generateSuggestedFixes();
     }
 
+    function countsTowardCommitment(code) {
+        return ['7A', '7P', 'MID', 'PTO', 'FMLA', 'LOA'].includes(String(code || '').toUpperCase());
+    }
+
+    function isClinicalDayCoverage(code) {
+        return ['7A', 'MID', 'ANM_CN'].includes(code);
+    }
+
     function analyzeCompliance() {
         const content = document.getElementById('complianceCheckContent');
         const dates = rawData.dates.map(d => d.date);
@@ -1334,9 +1394,7 @@
         const issues = [];
         staffRoster.forEach(staff => {
             const staffIssues = [];
-            const submittedDays = Object.keys(staff.shifts||{}).filter(date => {
-                const value = staff.shifts[date]; return value && String(value).trim() !== '';
-            }).length;
+            const submittedDays = Object.values(staff.shifts || {}).filter(countsTowardCommitment).length;
 
             const staffType = staff.type || 'FT';
             if (staffType === 'PRN' || ANM_STAFF.includes(staff.name)) return;
@@ -1423,7 +1481,7 @@
             let isWeekend = false;
             if (staffShift === 'PM') { isWeekend = (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0); }
             else { isWeekend = (dayOfWeek === 6 || dayOfWeek === 0); }
-            if (isWeekend && shiftValue && String(shiftValue).trim() !== '') count++;
+            if (isWeekend && ['7A', '7P', 'MID'].includes(shiftValue)) count++;
         });
         return count;
     }
@@ -1433,7 +1491,7 @@
         dates.forEach(dateStr => {
             const date = parseDate(dateStr);
             const shiftValue = staff.shifts[dateStr];
-            if (date.getDay() === 0 && shiftValue && String(shiftValue).trim() !== '') count++;
+            if (date.getDay() === 0 && ['7A', '7P', 'MID'].includes(shiftValue)) count++;
         });
         return count;
     }
@@ -1441,14 +1499,15 @@
     function analyzeCoverageGaps() {
         const content = document.getElementById('coverageGapsContent');
         const dates = rawData.dates.map(d => d.date);
-        const COUNTING_DAY = ['7A','MID'];
+        const COUNTING_DAY = ['7A','MID','ANM_CN'];
         const gapsByDate = [];
         dates.forEach(date => {
             let rnCount=0, pctCount=0, chgCount=0, ebCount=0, esCount=0;
             staffRoster.forEach(staff => {
                 const shift = staff.shifts[date];
-                if (COUNTING_DAY.includes(shift)) {
-                    if (staff.job?.includes('RN')) { rnCount++; if (staff.skill?.includes('CN')) chgCount++; if (staff.skill?.includes('EB')) ebCount++; if (staff.skill?.includes('ES')) esCount++; }
+                if (isClinicalDayCoverage(shift)) {
+                    if (shift === 'ANM_CN') { rnCount++; chgCount++; }
+                    else if (staff.job?.includes('RN')) { rnCount++; if (staff.skill?.includes('CN')) chgCount++; if (staff.skill?.includes('EB')) ebCount++; if (staff.skill?.includes('ES')) esCount++; }
                     if (staff.job?.includes('PCT')) pctCount++;
                 }
             });
@@ -1504,16 +1563,14 @@
                 // =====================================================
                 const lateSubmitters = staffRoster.filter(s => detectLateSubmitter(s)).map(s => {
                     const staffType = s.type || 'FT';
-                    const submittedDays = Object.keys(s.shifts||{}).filter(date => {
-                        const value = s.shifts[date]; return value && String(value).trim() !== '';
-                    }).length;
+                    const submittedDays = Object.values(s.shifts || {}).filter(countsTowardCommitment).length;
                     // Display the actual requirement (18 for FT, 12 for PT)
                     const actualRequired = staffType === 'FT' ? 18 : 12;
                     return { name: s.name, job: s.job, staffType, submitted: submittedDays, threshold: actualRequired };
                 });
                 balancedResults.lateSubmitters = lateSubmitters;
 
-                updateProgress(100, 'Complete!');
+                updateProgress(100, 'Balance calculated — review unresolved deficits below.');
                 setTimeout(() => {
                     displayResults();
                     document.getElementById('balanceProgress').classList.add('hidden');
@@ -1555,13 +1612,13 @@
 
         sortedDates.forEach(date => {
             const gaps = getGaps(date, simulation, COUNTING_DAY);
-            const rnMax = getRnMax(date);
+            const rnMax = getRnMax(date, 'day');
 
             // Live RN counter — tracks total RNs assigned on this date as we go.
             // CN/EB/ES candidates are all RNs, so they ALL count toward the daily cap.
             // This prevents +5 situations where filling 4 different sub-types all add RNs.
             let liveRN = Object.values(simulation).filter(st => {
-                const sh = st[date]; return (sh === '7A' || sh === 'MID') && st.job === 'RN';
+                const sh = st[date]; return (sh === '7A' || sh === 'MID' || sh === 'ANM_CN') && st.job === 'RN';
             }).length;
 
             // Priority order: PCT first (hardest to fill), then CN, then EB/ES, then RN
@@ -1615,7 +1672,7 @@
                 const midNeeded = midRequired - midActual;
                 const rnMaxNow = getRnMax(date);
                 const currentRNCount = Object.values(simulation).filter(st => {
-                    const sh = st[date]; return (sh === '7A' || sh === 'MID') && st.job === 'RN';
+                    const sh = st[date]; return (sh === '7A' || sh === 'MID' || sh === 'ANM_CN') && st.job === 'RN';
                 }).length;
 
                 // Candidates: permanent MIDSHIFT staff first, then rotating AM staff
@@ -1726,7 +1783,7 @@
 
         sortedDates.forEach(date => {
             const gaps = getGaps(date, simulation, COUNTING_NIGHT);
-            const rnMax = getRnMax(date);
+            const rnMax = getRnMax(date, 'night');
 
             // Live RN counter — same logic as day shift, prevents CN/EB/ES stacking
             let liveRN = Object.values(simulation).filter(st => {
@@ -1822,8 +1879,13 @@
         Object.entries(shifts).forEach(([date, raw]) => {
             let code = '';
             const upper = String(raw).toUpperCase();
+            if (['R/O','PTO','HOL','FMLA','LOA','PAYRO','SICK','ADMIN','ANM_ADMIN','EDU','ORI','FLOAT','CALL','PRECEPT'].includes(upper)) {
+                translated[date] = upper;
+                return;
+            }
             if (mode === 'day') {
-                if (upper.includes('6T19')||upper.includes('7A')||upper.includes('6W18')) code = '7A';
+                if (upper === 'ANM_CN') code = 'ANM_CN';
+                else if (upper.includes('6T19')||upper.includes('7A')||upper.includes('6W18')) code = '7A';
                 else if (upper.includes('10W2')||upper==='10A'||upper==='MID'||upper==='10W22'||upper.startsWith('12W')) code = 'MID';
                 else if (upper.includes('R/O')||upper==='RO'||/^R\s+\d/.test(upper)) code = 'R/O';
                 else if (upper.includes('PTO')||upper.includes('VAC')) code = 'PTO';
@@ -1851,6 +1913,7 @@
         Object.values(simulation).forEach(staff => {
             if (EXCLUDED_STAFF.includes(staff.name)) return; // excluded staff don't affect gap calc
             const shift = staff[date];
+            if (isDay && shift === 'ANM_CN') { rn++; chg++; return; }
             // MID counts toward day coverage only — never toward night
             const counts = countingCodes.includes(shift) || (isDay && shift === 'MID');
             if (!counts) return;
@@ -1858,9 +1921,10 @@
             else if (staff.job==='PCT' || staff.job==='HUC') { pct++; }
             if (shift === 'MID') mid++;
         });
-        const rnMin  = getRnMin(date);
-        const pctMin = getPctMin(date);
-        const rnMax  = getRnMax(date);
+        const mode = isDay ? 'day' : 'night';
+        const rnMin  = getRnMin(date, mode);
+        const pctMin = getPctMin(date, mode);
+        const rnMax  = getRnMax(date, mode);
         const midMin = isWeekendDate(date) ? requirements.MID_WE : requirements.MID_WD;
         return {
             RN:  rn  >= rnMax  ? 0 : Math.max(0, rnMin  - rn),
@@ -1874,7 +1938,7 @@
     }
 
     function detectShiftType(staffSchedule) {
-        const dayCodes=['7A','10A','12P','MID'], nightCodes=['7P'];
+        const dayCodes=['7A','10A','12P','MID','ANM_CN'], nightCodes=['7P'];
         let dayCount=0, nightCount=0;
         Object.values(staffSchedule).forEach(code => {
             if (dayCodes.includes(code)) dayCount++;
@@ -1898,7 +1962,7 @@
         const current = simulation[staff.name][date];
         if (countingCodes.includes(current)) return false;
         // Block scheduling on any non-working or protected day
-        if (['R/O','PTO','HOL','FMLA','LOA','PAYRO','SICK','ADMIN','EDU'].includes(current)) return false;
+        if (['R/O','PTO','HOL','FMLA','LOA','PAYRO','SICK','ADMIN','ANM_ADMIN','EDU'].includes(current)) return false;
         // Filter to date keys only — use parseDate validity (handles '4/19/ 2026' and '4/19/2026')
         const allDates = Object.keys(simulation[staff.name])
             .filter(k => { try { const d = parseDate(k); return !isNaN(d.getTime()) && d.getFullYear() > 2000; } catch(e) { return false; } })
@@ -1994,17 +2058,15 @@
     }
 
     // PTO = WORKED SHIFT for minimum requirement purposes (per code reference v28)
-    // PTO, FMLA, LOA, ADMIN → count toward 18 (FT) / 12 (PT) minimum
+    // PTO, FMLA and LOA count toward 18 (FT) / 12 (PT) minimum.
+    // ADMIN and PAYRO remain excluded pending scheduling-leadership policy approval.
     // SICK → does NOT count (sick time ≠ approved leave, doesn't fulfill minimum)
     function countEffectiveShifts(name, simulation, countingCodes) {
         const staff = simulation[name];
         let count = 0;
         Object.values(staff).forEach(s => {
-            if (countingCodes.includes(s)) count++;          // actual working shift
-            if (s === 'PTO' || s === 'VAC') count++;         // approved leave counts
-            if (s === 'FMLA' || s === 'LOA') count++;        // protected leave counts
-            if (s === 'ADMIN') count++;                       // ANM admin shift counts (e.g. Rowena 4am-12pm)
-            // SICK does NOT count — sick days don't fulfill minimum shift requirement
+            if (countingCodes.includes(s)) count++;
+            else if (countsTowardCommitment(s)) count++;
         });
         return count;
     }
@@ -2019,10 +2081,7 @@
         const originalShifts = staffMember.shifts || {};
         const dateKeys = Object.keys(originalShifts);
         if (dateKeys.length === 0) return true;
-        const submittedDays = dateKeys.filter(date => {
-            const value = originalShifts[date];
-            return value && String(value).trim() !== '';
-        }).length;
+        const submittedDays = dateKeys.filter(date => countsTowardCommitment(originalShifts[date])).length;
         // FIXED: FT threshold is now 18 (was incorrectly 6)
         const threshold = staffType === 'PT' ? 12 : 18;
         return submittedDays < threshold;
@@ -2060,9 +2119,10 @@
 
     function displayResults() {
         const content = document.getElementById('resultsContent');
-        let html = '';
-        if (balancedResults.day) html += generateResultHTML('Day Shift', balancedResults.day, ['7A','10A','12P']);
-        if (balancedResults.night) html += generateResultHTML('Night Shift', balancedResults.night, ['7P']);
+        const unresolved = getUnresolvedDeficits();
+        let html = generateUnresolvedDeficitsHTML(unresolved);
+        if (balancedResults.day) html += generateResultHTML('Day Shift', balancedResults.day, ['7A','MID','ANM_CN'], 'day');
+        if (balancedResults.night) html += generateResultHTML('Night Shift', balancedResults.night, ['7P'], 'night');
         content.innerHTML = html;
         displayScoreCard();
         displayMoveTracker();
@@ -2073,6 +2133,44 @@
             displayLateSubmitters();
             document.getElementById('lateSubmittersSection').classList.remove('hidden');
         }
+    }
+
+    function getUnresolvedDeficits() {
+        const summaries = [];
+        const collect = (label, result, countingCodes, mode) => {
+            if (!result) return;
+            const roles = mode === 'day' ? ['RN', 'PCT', 'CN', 'EB', 'ES', 'MID'] : ['RN', 'PCT', 'CN', 'EB', 'ES'];
+            roles.forEach(role => {
+                const affected = [];
+                let positions = 0;
+                result.dates.forEach(date => {
+                    const amount = getGaps(date, result.simulation, countingCodes)[role] || 0;
+                    if (amount > 0) { affected.push(date); positions += amount; }
+                });
+                if (affected.length) summaries.push({ shift: label, role: role === 'PCT' ? 'PCT/HUC' : role, affected, positions });
+            });
+        };
+        collect('Day', balancedResults.day, ['7A', 'MID', 'ANM_CN'], 'day');
+        collect('Night', balancedResults.night, ['7P'], 'night');
+        return {
+            summaries,
+            totalPositions: summaries.reduce((sum, item) => sum + item.positions, 0),
+            totalRoleDays: summaries.reduce((sum, item) => sum + item.affected.length, 0)
+        };
+    }
+
+    function generateUnresolvedDeficitsHTML(unresolved) {
+        if (unresolved.totalPositions === 0) {
+            return '<div class="alert alert-success"><strong>✅ Fully Balanced</strong><br>All enabled coverage and skill-mix minimums are met. Review weekend and commitment sections before publishing.</div>';
+        }
+        let html = `<div class="alert alert-error"><strong>⚠️ Partially Balanced — ${unresolved.totalPositions} unresolved staffing position${unresolved.totalPositions===1?'':'s'}</strong><br>`;
+        html += 'Do not treat this schedule as fully staffed. Arrange additional coverage or manually resolve the deficits listed below.</div>';
+        html += '<div style="overflow-x:auto;margin:12px 0 20px;"><table class="staff-table"><thead><tr><th>Shift</th><th>Role</th><th>Gap Days</th><th>Missing Positions</th><th>Dates</th></tr></thead><tbody>';
+        unresolved.summaries.forEach(item => {
+            html += `<tr><td>${item.shift}</td><td><strong>${item.role}</strong></td><td>${item.affected.length}</td><td style="color:#e53e3e;font-weight:700;">${item.positions}</td><td style="font-size:12px;">${item.affected.join(', ')}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+        return html;
     }
 
     function displayMoveTracker() {
@@ -2166,11 +2264,13 @@
         content.innerHTML = html;
     }
 
-    function generateResultHTML(title, result, countingCodes) {
+    function generateResultHTML(title, result, countingCodes, mode) {
         const { simulation, dates, moves } = result;
         let metDays=0;
-        dates.forEach(date => { const gaps=getGaps(date,simulation,countingCodes); if (Object.values(gaps).every(v=>v===0)) metDays++; });
-        return `<div class="alert alert-success"><strong>✅ ${title} Balanced</strong><br>${moves} shifts added • ${metDays}/${dates.length} days fully met</div>
+        const roles = mode === 'day' ? ['RN','PCT','CN','EB','ES','MID'] : ['RN','PCT','CN','EB','ES'];
+        dates.forEach(date => { const gaps=getGaps(date,simulation,countingCodes); if (roles.every(role => (gaps[role] || 0) === 0)) metDays++; });
+        const complete = metDays === dates.length;
+        return `<div class="alert ${complete?'alert-success':'alert-warning'}"><strong>${complete?'✅':'⚠️'} ${title} ${complete?'Fully Balanced':'Partially Balanced'}</strong><br>${moves} shifts added • ${metDays}/${dates.length} days meet all enabled minimums</div>
         <div class="stats-grid">
             <div class="stat-card"><div class="stat-value">${metDays}/${dates.length}</div><div class="stat-label">Days Met</div></div>
             <div class="stat-card"><div class="stat-value">${moves}</div><div class="stat-label">Shifts Added</div></div>
@@ -2216,7 +2316,8 @@
                 const sh = sim[s.name] ? sim[s.name][date] : '';
                 const counts = counting.includes(sh) || (isDay && sh === 'MID');
                 if (!counts) return;
-                if (s.job==='RN') { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
+                if (sh === 'ANM_CN') { rn++; chg++; }
+                else if (s.job==='RN') { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
                 if (s.job==='PCT' || s.job==='HUC') pct++;
                 if (sh === 'MID') mid++;
             });
@@ -2460,7 +2561,7 @@
         ['day','night'].forEach(shift => {
             if (!balancedResults?.[shift]) return;
             const { simulation, dates } = balancedResults[shift];
-            const counting = shift === 'day' ? ['7A','MID'] : ['7P'];
+            const counting = shift === 'day' ? ['7A','MID','ANM_CN'] : ['7P'];
             const isDay = shift === 'day';
 
             let daysMetRN=0, daysOverCap=0, daysMetPCT=0, daysMetMID=0;
@@ -2473,14 +2574,14 @@
                     if (EXCLUDED_STAFF.includes(s.name)) return;
                     const sh = simulation[s.name]?.[date] || '';
                     if (!counting.includes(sh) && !(isDay && sh==='MID')) return;
-                    if (s.job==='RN') rn++;
+                    if (sh === 'ANM_CN' || s.job==='RN') rn++;
                     if (s.job==='PCT'||s.job==='HUC') pct++;
                     if (sh==='MID') mid++;
                 });
                 const dow = parseDate(date).getDay();
                 const isWE = isDay ? (dow===0||dow===6) : (dow===5||dow===6||dow===0);
                 const rnMin = isWE ? requirements.RN_WE : requirements.RN_WD;
-                const rnMax = getRnMax(date);
+                const rnMax = getRnMax(date, isDay ? 'day' : 'night');
                 const pctMin = isWE ? requirements.PCT_WE : requirements.PCT_WD;
                 const midMin = isWE ? requirements.MID_WE : requirements.MID_WD;
                 if (rn >= rnMin) daysMetRN++;
@@ -2695,7 +2796,7 @@
         <h1 style="color:#1a365d;">🏥 CVICU Balanced Schedule — Color Coded</h1>`;
 
         if (balancedResults.day)
-            html += makeSheet('☀️ DAY SHIFT', balancedResults.day, ['7A','MID'], true);
+            html += makeSheet('☀️ DAY SHIFT', balancedResults.day, ['7A','MID','ANM_CN'], true);
         if (balancedResults.night)
             html += makeSheet('🌙 NIGHT SHIFT', balancedResults.night, ['7P'], false);
 
@@ -2719,7 +2820,8 @@
                         const sh = simulation[s.name] ? simulation[s.name][date] : '';
                         const counts = counting.includes(sh) || (isDay && sh==='MID');
                         if (!counts) return;
-                        if (s.job?.includes('RN')) { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
+                        if (sh === 'ANM_CN') { rn++; chg++; }
+                        else if (s.job?.includes('RN')) { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
                         if (s.job==='PCT'||s.job==='HUC') pct++;
                     });
                     const dow = parseDate(date).getDay();
@@ -2769,7 +2871,7 @@
             <head><meta charset="UTF-8"></head><body style="font-family:Calibri,Arial;padding:20px;">
             <h2 style="color:#1F3864;">🏥 CVICU Coverage Tally — Color Coded</h2>
             <p style="color:#666;font-size:12px;">🟢 Green = at/above minimum &nbsp;|&nbsp; 🔵 Blue = over cap (&gt;+4 RNs) &nbsp;|&nbsp; 🔴 Red = below minimum (gap)</p>`;
-            if (balancedResults.day)   html += makeTable('☀️ DAY SHIFT',   balancedResults.day,   ['7A','MID'], true);
+            if (balancedResults.day)   html += makeTable('☀️ DAY SHIFT',   balancedResults.day,   ['7A','MID','ANM_CN'], true);
             if (balancedResults.night) html += makeTable('🌙 NIGHT SHIFT', balancedResults.night, ['7P'],       false);
             html += '</body></html>';
             const uri = 'data:application/vnd.ms-excel;charset=utf-8,' + encodeURIComponent(html);
@@ -2782,7 +2884,7 @@
 
     function addDayCoverageSummarySheet(wb) {
         const dates = rawData.dates.map(d => d.date);
-        const COUNTING_DAY = ['7A','MID'];
+        const COUNTING_DAY = ['7A','MID','ANM_CN'];
         const simulation = balancedResults.day ? balancedResults.day.simulation : {};
         const cov = dates.map(date => {
             let rn=0,pct=0,chg=0,eb=0,es=0;
@@ -2790,7 +2892,8 @@
                 if (EXCLUDED_STAFF.includes(s.name)) return;
                 const sh = simulation[s.name] ? simulation[s.name][date] : '';
                 if (!COUNTING_DAY.includes(sh)) return;
-                if (s.job?.includes('RN')) { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
+                if (sh === 'ANM_CN') { rn++; chg++; }
+                else if (s.job?.includes('RN')) { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
                 if (s.job?.includes('PCT') || s.job==='HUC') pct++;
             });
             const rnMin=getRnMin(date), pctMin=getPctMin(date);
@@ -2847,7 +2950,7 @@
             const we = (dow === 5 || dow === 6 || dow === 0);
             const rnMin = we ? requirements.RN_WE : requirements.RN_WD;
             const pctMin = we ? requirements.PCT_WE : requirements.PCT_WD;
-            const rnMax = getRnMax(date);
+            const rnMax = getRnMax(date, 'night');
             return { date, rn:rnCount, pct:pctCount, chg:chgCount, eb:ebCount, es:esCount, rnMin, rnMax, pctMin };
         });
 
@@ -2877,7 +2980,7 @@
     function addShiftSheet(wb, result, sheetName, shiftLabel) {
         const { simulation, dates } = result;
         const isDay = shiftLabel.includes('DAY');
-        const COUNTING = isDay ? ['7A','MID'] : ['7P'];
+        const COUNTING = isDay ? ['7A','MID','ANM_CN'] : ['7P'];
 
         const anms  = staffRoster.filter(s=>ANM_STAFF.includes(s.name));
         const mids  = staffRoster.filter(s=>s.shift==='MIDSHIFT'&&!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name));
@@ -2897,7 +3000,8 @@
                 if (EXCLUDED_STAFF.includes(s.name)) return;
                 const sh = simulation[s.name] ? simulation[s.name][date] : '';
                 if (!COUNTING.includes(sh)) return;
-                if (s.job?.includes('RN')) { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
+                if (sh === 'ANM_CN') { rn++; chg++; }
+                else if (s.job?.includes('RN')) { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
                 if (s.job?.includes('PCT') || s.job==='HUC') pct++;
             });
             const dow = parseDate(date).getDay();
