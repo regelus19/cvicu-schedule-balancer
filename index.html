@@ -137,7 +137,7 @@
                     <li><strong>Cap sliders</strong> — max RNs above minimum per day type:<br>
                         &nbsp;&nbsp;Sat +1, Sun +2, Mon/Tue/Wed/Fri +3, Thu +4</li>
                     <li><strong>PCT/HUC Weekday</strong> min 2, <strong>PCT/HUC Weekend</strong> min 1 (PCT and HUC are counted together toward coverage)</li>
-                    <li><strong>CN</strong> (Charge Nurse) min 3 per shift</li>
+                    <li><strong>Assigned CN</strong> (Charge Nurse) minimum 2, maximum 4 per shift</li>
                     <li>EB and ES minimums (skill mix)</li>
                 </ul>
             </div>
@@ -472,6 +472,15 @@
         <div class="card-title">⚙️ Step 2: Set Coverage Requirements</div>
         <div style="font-size:13px;color:#718096;margin-bottom:12px;">Weekday = Mon–Fri &nbsp;|&nbsp; Weekend = Sat/Sun &nbsp;|&nbsp; <strong>Cap = Min + offset</strong> &nbsp;|&nbsp; PCT/HUC counted together — tweak to control max RN overage</div>
 
+        <div style="background:#ebf8ff;border:2px solid #90cdf4;border-radius:8px;padding:16px;margin-bottom:12px;">
+            <div style="font-weight:600;font-size:14px;margin-bottom:8px;">📅 Scheduling Status</div>
+            <select id="scheduleStatus" style="width:100%;max-width:520px;padding:10px;border:1px solid #90cdf4;border-radius:6px;background:white;">
+                <option value="open" selected>Open — staff are still self-scheduling</option>
+                <option value="closed">Closed — submissions are final</option>
+            </select>
+            <div id="scheduleStatusHelp" style="font-size:12px;color:#2c5282;margin-top:8px;">Remaining gaps will be labeled as a draft projection while submissions are still open.</div>
+        </div>
+
         <!-- RN MIN + CAP ROW -->
         <div style="background:#edf2f7;border-radius:8px;padding:16px;margin-bottom:12px;">
             <div style="font-weight:600;font-size:14px;margin-bottom:12px;">👩‍⚕️ RN Coverage — Minimum &amp; Max Cap (+/- over min)</div>
@@ -535,8 +544,9 @@
             </div>
             <div>
                 <div class="slider-group">
-                    <div class="slider-label"><span>CN Minimum (Charge Nurse)</span><span class="slider-value" id="chgValue">3</span></div>
-                    <input type="range" id="chgSlider" min="1" max="10" value="3">
+                    <div class="slider-label"><span>Assigned CNs (minimum 2 / maximum 4)</span><span class="slider-value" id="chgValue">2</span></div>
+                    <input type="range" id="chgSlider" min="2" max="2" value="2" disabled>
+                    <div style="font-size:11px;color:#718096;margin-top:4px;">Additional CN-qualified nurses may still work as regular bedside RNs.</div>
                 </div>
             </div>
             <div>
@@ -711,8 +721,8 @@
     </div>
 
     <div class="card hidden" id="lateSubmittersSection">
-        <div class="card-title">🚨 Late Submitters - Needs Attention Before Sunday Deadline</div>
-        <div style="margin-bottom:16px;font-size:14px;color:#718096;">Staff who haven't submitted enough shifts yet</div>
+        <div class="card-title">🚨 Submission Status</div>
+        <div style="margin-bottom:16px;font-size:14px;color:#718096;">Staff with a blank or incomplete self-schedule</div>
         <div id="lateSubmittersContent"></div>
     </div>
 </div>
@@ -842,7 +852,9 @@
     let staffRoster = [];
     let balancedResults = null;
     let protectedStaff = [];
-    let requirements = { RN_WD: 15, RN_WE: 14, PCT_WD: 2, PCT_WE: 1, CN: 3, EB: 2, ES: 2,
+    const CN_MAX = 4;
+    let scheduleStatus = 'open';
+    let requirements = { RN_WD: 15, RN_WE: 14, PCT_WD: 2, PCT_WE: 1, CN: 2, EB: 2, ES: 2,
                           CAP_WD: 3, CAP_THU: 4, CAP_SAT: 1, CAP_SUN: 2,
                           MID_WD: 2, MID_WE: 1 }; // MID min: weekday=2, weekend=1
 
@@ -916,6 +928,13 @@
             if (file) handleFileUpload(file);
         });
         fileInput.addEventListener('change', (e) => { if (e.target.files[0]) handleFileUpload(e.target.files[0]); });
+        const statusSelect = document.getElementById('scheduleStatus');
+        if (statusSelect) statusSelect.addEventListener('change', () => {
+            scheduleStatus = statusSelect.value;
+            document.getElementById('scheduleStatusHelp').textContent = scheduleStatus === 'open'
+                ? 'Remaining gaps will be labeled as a draft projection while submissions are still open.'
+                : 'Remaining gaps will be labeled as unresolved deficits because submissions are final.';
+        });
         // Weekday/weekend split sliders for RN min and PCT
         [
             ['rnWdSlider','rnWdValue','RN_WD'],
@@ -1513,6 +1532,7 @@
             });
             const rnMin  = getRnMin(date);
             const pctMin = getPctMin(date);
+            chgCount = Math.min(chgCount, CN_MAX); // excess CN-qualified nurses remain regular bedside RNs
             const rnGap=rnMin-rnCount, pctGap=pctMin-pctCount, chgGap=requirements.CN-chgCount, ebGap=requirements.EB-ebCount, esGap=requirements.ES-esCount;
             const hasGaps = rnGap>0||pctGap>0||chgGap>0||ebGap>0||esGap>0;
             if (hasGaps) gapsByDate.push({ date, rnGap:Math.max(0,rnGap), pctGap:Math.max(0,pctGap), chgGap:Math.max(0,chgGap), ebGap:Math.max(0,ebGap), esGap:Math.max(0,esGap), totalGaps:Math.max(0,rnGap)+Math.max(0,pctGap)+Math.max(0,chgGap)+Math.max(0,ebGap)+Math.max(0,esGap) });
@@ -1921,6 +1941,7 @@
             else if (staff.job==='PCT' || staff.job==='HUC') { pct++; }
             if (shift === 'MID') mid++;
         });
+        chg = Math.min(chg, CN_MAX); // allocate no more than four nurses to the CN role
         const mode = isDay ? 'day' : 'night';
         const rnMin  = getRnMin(date, mode);
         const pctMin = getPctMin(date, mode);
@@ -2160,11 +2181,15 @@
     }
 
     function generateUnresolvedDeficitsHTML(unresolved) {
+        const isOpen = scheduleStatus === 'open';
         if (unresolved.totalPositions === 0) {
-            return '<div class="alert alert-success"><strong>✅ Fully Balanced</strong><br>All enabled coverage and skill-mix minimums are met. Review weekend and commitment sections before publishing.</div>';
+            return `<div class="alert alert-success"><strong>✅ ${isOpen?'Draft Projection Meets Current Minimums':'Fully Balanced'}</strong><br>All enabled coverage and skill-mix minimums are met ${isOpen?'with submissions received so far':'for the final submissions'}. Review weekend and commitment sections before publishing.</div>`;
         }
-        let html = `<div class="alert alert-error"><strong>⚠️ Partially Balanced — ${unresolved.totalPositions} unresolved staffing position${unresolved.totalPositions===1?'':'s'}</strong><br>`;
-        html += 'Do not treat this schedule as fully staffed. Arrange additional coverage or manually resolve the deficits listed below.</div>';
+        let html = `<div class="alert ${isOpen?'alert-warning':'alert-error'}"><strong>⚠️ ${isOpen?'Draft Projection':'Partially Balanced'} — ${unresolved.totalPositions} ${isOpen?'remaining projected':'unresolved'} staffing position${unresolved.totalPositions===1?'':'s'}</strong><br>`;
+        html += isOpen
+            ? 'Self-scheduling is still open. These are projected gaps after the balancer uses currently blank eligible dates; they are not confirmed final vacancies.'
+            : 'Submissions are closed. Do not treat this schedule as fully staffed; arrange additional coverage or manually resolve the deficits listed below.';
+        html += '</div>';
         html += '<div style="overflow-x:auto;margin:12px 0 20px;"><table class="staff-table"><thead><tr><th>Shift</th><th>Role</th><th>Gap Days</th><th>Missing Positions</th><th>Dates</th></tr></thead><tbody>';
         unresolved.summaries.forEach(item => {
             html += `<tr><td>${item.shift}</td><td><strong>${item.role}</strong></td><td>${item.affected.length}</td><td style="color:#e53e3e;font-weight:700;">${item.positions}</td><td style="font-size:12px;">${item.affected.join(', ')}</td></tr>`;
@@ -2246,12 +2271,14 @@
         const lateSubmitters = balancedResults.lateSubmitters || [];
         if (lateSubmitters.length === 0) { content.innerHTML = '<div class="alert alert-success">✅ All staff have submitted enough shifts!</div>'; return; }
         const byType = { FT: lateSubmitters.filter(s=>s.staffType==='FT'), PT: lateSubmitters.filter(s=>s.staffType==='PT') };
+        const blankCount = lateSubmitters.filter(s => s.submitted === 0).length;
         let html = '<div class="stats-grid">';
-        html += `<div class="stat-card"><div class="stat-value" style="color:#e53e3e;">${lateSubmitters.length}</div><div class="stat-label">Late Submitters</div></div>`;
+        html += `<div class="stat-card"><div class="stat-value" style="color:#e53e3e;">${lateSubmitters.length}</div><div class="stat-label">${scheduleStatus==='open'?'Awaiting/Incomplete':'Late Submitters'}</div></div>`;
+        html += `<div class="stat-card"><div class="stat-value">${blankCount}</div><div class="stat-label">Blank Schedules</div></div>`;
         html += `<div class="stat-card"><div class="stat-value">${byType.FT.length}</div><div class="stat-label">Full-Time</div></div>`;
         html += `<div class="stat-card"><div class="stat-value">${byType.PT.length}</div><div class="stat-label">Part-Time</div></div>`;
-        html += `<div class="stat-card"><div class="stat-value">Sunday</div><div class="stat-label">Deadline</div></div></div>`;
-        html += '<div class="alert alert-warning" style="margin-top:16px;"><strong>⚠️ These staff need to submit more shifts before Sunday\'s deadline:</strong><br>';
+        html += '</div>';
+        html += `<div class="alert alert-warning" style="margin-top:16px;"><strong>⚠️ ${scheduleStatus==='open'?'These staff can still submit shifts; the balancer used their eligible blank dates for this draft projection.':'These staff did not meet their final submission commitment.'}</strong><br>`;
         html += '• FT: Need ≥18 shifts (3/week × 6 weeks)<br>• PT: Need ≥12 shifts (2/week × 6 weeks)</div>';
         html += '<table class="staff-table" style="margin-top:16px;"><thead><tr><th>Name</th><th>Job</th><th>Type</th><th>Submitted</th><th>Required</th><th>Missing</th></tr></thead><tbody>';
         lateSubmitters.sort((a,b)=>a.name.localeCompare(b.name)).forEach(s => {
@@ -2323,6 +2350,7 @@
             });
             const dow = parseDate(date).getDay();
             const isWE = isDay ? (dow===0||dow===6) : (dow===5||dow===6||dow===0);
+            chg = Math.min(chg, CN_MAX);
             return { rn, pct, chg, eb, es, mid,
                 rnMin:  isWE ? requirements.RN_WE  : requirements.RN_WD,
                 pctMin: isWE ? requirements.PCT_WE : requirements.PCT_WD,
@@ -2826,6 +2854,7 @@
                     });
                     const dow = parseDate(date).getDay();
                     const isWE = isDay ? (dow===0||dow===6) : (dow===5||dow===6||dow===0);
+                    chg = Math.min(chg, CN_MAX);
                     return {
                         rn, pct, chg, eb, es,
                         rnMin:  isWE ? requirements.RN_WE  : requirements.RN_WD,
@@ -2897,6 +2926,7 @@
                 if (s.job?.includes('PCT') || s.job==='HUC') pct++;
             });
             const rnMin=getRnMin(date), pctMin=getPctMin(date);
+            chg = Math.min(chg, CN_MAX);
             return {date,rn,pct,chg,eb,es,rnMin,pctMin};
         });
 
@@ -2951,6 +2981,7 @@
             const rnMin = we ? requirements.RN_WE : requirements.RN_WD;
             const pctMin = we ? requirements.PCT_WE : requirements.PCT_WD;
             const rnMax = getRnMax(date, 'night');
+            chgCount = Math.min(chgCount, CN_MAX);
             return { date, rn:rnCount, pct:pctCount, chg:chgCount, eb:ebCount, es:esCount, rnMin, rnMax, pctMin };
         });
 
@@ -3008,6 +3039,7 @@
             const isWE = isDay ? (dow===0||dow===6) : (dow===5||dow===6||dow===0);
             const rnMin  = isWE ? requirements.RN_WE  : requirements.RN_WD;
             const pctMin = isWE ? requirements.PCT_WE : requirements.PCT_WD;
+            chg = Math.min(chg, CN_MAX);
             return {rn,pct,chg,eb,es,rnMin,pctMin};
         });
 

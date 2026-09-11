@@ -63,7 +63,9 @@ assert.equal(balanced.dayDates, 42);
 assert.equal(balanced.nightDates, 42);
 assert.ok(!balanced.dayMoves.concat(balanced.nightMoves).some(move => ['Cruz, Rowena', 'Rodriguez, Althea Nadine', 'Bruce, Jessica', 'Sala, Jose F', 'Wells, Sydney N'].includes(move.name)));
 assert.ok(balanced.unresolved.totalPositions > 0);
-assert.ok(vm.runInContext('generateUnresolvedDeficitsHTML(getUnresolvedDeficits())', context).includes('Partially Balanced'));
+assert.equal(balanced.requirements.CN, 2);
+assert.ok(vm.runInContext('generateUnresolvedDeficitsHTML(getUnresolvedDeficits())', context).includes('Draft Projection'));
+assert.ok(vm.runInContext("scheduleStatus='closed'; generateUnresolvedDeficitsHTML(getUnresolvedDeficits())", context).includes('Partially Balanced'));
 
 const coverage = (simulation, mode) => balanced.dates.map(date => {
   let rn = 0, pct = 0, cn = 0, eb = 0, es = 0, mid = 0;
@@ -87,6 +89,7 @@ const coverage = (simulation, mode) => balanced.dates.map(date => {
   const pctMin = weekend ? balanced.requirements.PCT_WE : balanced.requirements.PCT_WD;
   const rnMax = rnMin + (day === 6 ? balanced.requirements.CAP_SAT : day === 0 ? balanced.requirements.CAP_SUN : day === 4 ? balanced.requirements.CAP_THU : balanced.requirements.CAP_WD);
   const midMin = weekend ? balanced.requirements.MID_WE : balanced.requirements.MID_WD;
+  cn = Math.min(cn, 4);
   return {date, rn, pct, cn, eb, es, mid, rnMin, rnMax, pctMin, midMin};
 });
 const dayCoverage = coverage(balanced.daySimulation, 'day');
