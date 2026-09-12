@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CVICU Schedule Balancer v30</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2019,7 +2019,7 @@
 
     function getDailyClinicalTotals(date, simulation, mode) {
         const isDay = mode === 'day';
-        let rn = 0, cnQualified = 0, es = 0;
+        let rn = 0, pct = 0, cnQualified = 0, eb = 0, es = 0, mid = 0;
         Object.values(simulation).forEach(staff => {
             if (EXCLUDED_STAFF.includes(staff.name)) return;
             const shift = staff[date];
@@ -2029,10 +2029,13 @@
             if (staff.job === 'RN') {
                 rn++;
                 if (staff.skill?.includes('CN')) cnQualified++;
+                if (staff.skill?.includes('EB')) eb++;
                 if (staff.skill?.includes('ES')) es++;
             }
+            if (staff.job === 'PCT' || staff.job === 'HUC') pct++;
+            if (shift === 'MID') mid++;
         });
-        return { rn, cn: Math.min(cnQualified, CN_MAX), cnQualified, es };
+        return { rn, pct, cn: Math.min(cnQualified, CN_MAX), cnQualified, eb, es, mid };
     }
 
     function coverageStatusStyle(value, minimum, maximum = null) {
@@ -3239,6 +3242,7 @@
         const dates = rawData.dates.map(d => d.date);
         const addBalancedSheet = (mode, result) => {
             if (!result) return;
+            const isDay = mode === 'day';
             const included = staffRoster.filter(staff => mode === 'day'
                 ? staff.shift === 'AM' || staff.shift === 'MIDSHIFT'
                 : staff.shift === 'PM');
@@ -3256,13 +3260,78 @@
                     ...dates.map(date => result.simulation[staff.name]?.[date] || ''),
                     commitment.total, commitment.required ?? 'N/A', moveCounts[staff.name] || 0]);
             });
-            const ws = XLSX.utils.aoa_to_sheet(data);
-            const movesCol = dates.length + 6;
-            included.forEach((staff, index) => {
-                const count = moveCounts[staff.name] || 0;
-                const addr = XLSX.utils.encode_cell({ r: index + 2, c: movesCol });
-                if (ws[addr]) ws[addr].s = { fill: { patternType:'solid', fgColor:{ rgb: count ? 'FFE91E8C' : 'FFFFF5F7' } }, font:{ bold:true, color:{ rgb: count ? 'FFFFFFFF' : 'FF97266D' } } };
+            data.push([]);
+            const tallyHeaderRow = data.length;
+            data.push(['DAILY COVERAGE TALLY','Minimum','','',...dates]);
+            const daily = dates.map(date => ({ date, ...getDailyClinicalTotals(date, result.simulation, mode) }));
+            const tallyRows = [
+                ['Total RN', d => getRnMin(d, mode), 'rn', null],
+                ['PCT/HUC', d => getPctMin(d, mode), 'pct', null],
+                ['Assigned CN', () => requirements.CN, 'cn', CN_MAX],
+                ['EB', () => requirements.EB, 'eb', null],
+                ['ES', () => requirements.ES, 'es', null]
+            ];
+            if (isDay) tallyRows.push(['MID', d => isWeekendDate(d) ? requirements.MID_WE : requirements.MID_WD, 'mid', null]);
+            tallyRows.forEach(([label, getMinimum, key]) => {
+                data.push([label, 'varies','','',...daily.map(item => item[key])]);
             });
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            const fillStyle = (rgb, color = 'FFFFFFFF') => ({
+                fill:{ patternType:'solid', fgColor:{ rgb } },
+                font:{ bold:true, color:{ rgb:color } },
+                alignment:{ horizontal:'center', vertical:'center', wrapText:true },
+                border:{ left:{style:'thin',color:{rgb:'FFD1D5DB'}}, right:{style:'thin',color:{rgb:'FFD1D5DB'}}, top:{style:'thin',color:{rgb:'FFD1D5DB'}}, bottom:{style:'thin',color:{rgb:'FFD1D5DB'}} }
+            });
+            const statusStyle = (value, minimum, maximum = null) => {
+                if (value < minimum) return fillStyle('FFE53E3E');
+                if ((maximum !== null && value > maximum) || (maximum === null && value > minimum)) return fillStyle('FF3182CE');
+                return fillStyle('FF38A169');
+            };
+            for (let c = 0; c < dates.length + 7; c++) {
+                const title = XLSX.utils.encode_cell({r:0,c});
+                const header = XLSX.utils.encode_cell({r:1,c});
+                if (ws[title]) ws[title].s = fillStyle(isDay ? 'FF1A365D' : 'FF2D3748');
+                if (ws[header]) ws[header].s = fillStyle(isDay ? 'FF1A365D' : 'FF2D3748');
+            }
+            const movesCol = dates.length + 6;
+            const committedCol = dates.length + 4;
+            included.forEach((staff, index) => {
+                const row = index + 2;
+                const commitment = staffCommitmentStatus(staff, result.simulation, dates);
+                const committedAddr = XLSX.utils.encode_cell({ r:row, c:committedCol });
+                if (ws[committedAddr]) ws[committedAddr].s = commitment.required === null
+                    ? fillStyle('FFE2E8F0','FF4A5568')
+                    : statusStyle(commitment.total, commitment.required);
+                const count = moveCounts[staff.name] || 0;
+                const addr = XLSX.utils.encode_cell({ r:row, c:movesCol });
+                if (ws[addr]) ws[addr].s = fillStyle(count ? 'FFE91E8C' : 'FFFFF5F7', count ? 'FFFFFFFF' : 'FF97266D');
+                dates.forEach((date, dateIndex) => {
+                    const shiftAddr = XLSX.utils.encode_cell({r:row,c:dateIndex+4});
+                    const value = result.simulation[staff.name]?.[date] || '';
+                    if (!ws[shiftAddr]) return;
+                    const moved = (result.moveList || []).some(move => move.name === staff.name && move.date === date);
+                    if (moved) ws[shiftAddr].s = fillStyle('FFE91E8C');
+                    else if (value === 'R/O') ws[shiftAddr].s = fillStyle('FF7B2D8B');
+                    else if (['PTO','FMLA','LOA'].includes(value)) ws[shiftAddr].s = fillStyle('FF0097A7');
+                    else if (['ADMIN','ANM_ADMIN','PAYRO'].includes(value)) ws[shiftAddr].s = fillStyle('FFC62828');
+                });
+            });
+            const tallyHeaderIndex = tallyHeaderRow;
+            for (let c = 0; c < dates.length + 4; c++) {
+                const addr = XLSX.utils.encode_cell({r:tallyHeaderIndex,c});
+                if (ws[addr]) ws[addr].s = fillStyle('FF1F3864');
+            }
+            tallyRows.forEach(([label, getMinimum, key, maximum], tallyIndex) => {
+                const row = tallyHeaderIndex + 1 + tallyIndex;
+                const labelAddr = XLSX.utils.encode_cell({r:row,c:0});
+                if (ws[labelAddr]) ws[labelAddr].s = fillStyle('FFEDF2F7','FF2D3748');
+                daily.forEach((item, dateIndex) => {
+                    const addr = XLSX.utils.encode_cell({r:row,c:dateIndex+4});
+                    if (ws[addr]) ws[addr].s = statusStyle(item[key], getMinimum(item.date), maximum);
+                });
+            });
+            ws['!cols'] = [{wch:26},{wch:10},{wch:8},{wch:14},...dates.map(()=>({wch:11})),{wch:12},{wch:10},{wch:9}];
+            ws['!autofilter'] = { ref:`A2:${XLSX.utils.encode_col(movesCol)}${included.length+2}` };
             XLSX.utils.book_append_sheet(wb, ws, mode === 'day' ? 'Day Balanced' : 'Night Balanced');
         };
         addBalancedSheet('day', balancedResults.day);
