@@ -69,4 +69,12 @@ assert.equal(vm.runInContext("countsTowardCommitment('R/O')", context), false);
 assert.equal(vm.runInContext("countsTowardCommitment('ADMIN')", context), false);
 assert.equal(vm.runInContext("countsTowardCommitment('PAYRO')", context), false);
 
+const fairnessOrder = vm.runInContext(`getFairnessRanking(
+  ['Nurse, Never','Nurse, Recent','Nurse, Oldest'], 'PTO', [
+    {employee:'Nurse, Recent',requestType:'PTO',decision:'Granted',grantedDate:'2026-08-01'},
+    {employee:'Nurse, Oldest',requestType:'PTO',decision:'Granted',grantedDate:'2025-01-01'}
+  ]
+).map(item => item.name)`, context);
+assert.deepEqual([...fairnessOrder], ['Nurse, Never','Nurse, Oldest','Nurse, Recent']);
+
 console.log('audit-fixes tests passed');

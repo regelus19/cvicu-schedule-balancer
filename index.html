@@ -589,21 +589,22 @@
     <div class="card hidden" id="rosterSection">
         <div class="card-title">👥 Step 3: Review Staff Roster &amp; Skills <span class="badge">Auto-saved</span></div>
         <div style="margin-bottom:16px;font-size:14px;color:#718096;">Edit skills (EB/ES/CN) and staff types. Changes are saved automatically.</div>
+        <div id="staffBreakdownContent" style="margin-bottom:20px;"></div>
         <div class="alert alert-warning" style="margin-bottom:16px;">
             <strong>⚠️ Protected Staff:</strong> ANMs (Cruz, Rodriguez, Bruce) will never be moved during balancing.
         </div>
         <div style="background:#f7fafc;border:2px solid #667eea;border-radius:8px;padding:16px;margin-bottom:20px;">
             <div style="font-weight:600;font-size:16px;color:#667eea;margin-bottom:12px;">💾 Master Staff Database</div>
-            <div style="font-size:14px;color:#718096;margin-bottom:12px;">Upload a master CSV once to save all staff info. Auto-loads on every MyTime import.</div>
+            <div style="font-size:14px;color:#718096;margin-bottom:12px;">Upload the master Excel workbook or a CSV to save staff information. Excel can also carry the fairness request history.</div>
             <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
-                <button class="btn btn-secondary" onclick="document.getElementById('masterCSVUpload').click()">📤 Upload Master CSV</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('masterCSVUpload').click()">📤 Upload Master Excel/CSV</button>
                 <button class="btn btn-secondary" onclick="saveCurrentAsMaster()">💾 Save Current as Master</button>
                 <button class="btn btn-secondary" onclick="showAddEmployeeForm()">➕ Add New Employee</button>
                 <button class="btn btn-secondary" onclick="downloadMasterCSV()">📥 Export Master CSV</button>
                 <button class="btn btn-secondary" onclick="clearMasterDatabase()" style="background:#f56565;">🗑️ Clear Database</button>
             </div>
-            <input type="file" id="masterCSVUpload" accept=".csv" style="display:none;" onchange="handleMasterCSVUpload(event)">
-            <div style="font-size:13px;color:#718096;margin-bottom:8px;font-style:italic;">💡 Tip: Upload your edited file once, click "Save Current as Master", then all future MyTime uploads will auto-fill!</div>
+            <input type="file" id="masterCSVUpload" accept=".csv,.xlsx" style="display:none;" onchange="handleMasterCSVUpload(event)">
+            <div style="font-size:13px;color:#718096;margin-bottom:8px;font-style:italic;">💡 Tip: Upload the master Excel file to load both roster details and request history.</div>
             <div id="masterDatabaseStatus" style="font-size:14px;color:#667eea;font-weight:600;"></div>
         </div>
 
@@ -627,6 +628,18 @@
                 <thead><tr><th>Name</th><th>Job</th><th>Type</th><th>Shift</th><th>Skills</th></tr></thead>
                 <tbody id="staffTableBody"></tbody>
             </table>
+        </div>
+
+        <div style="margin-top:20px;background:#f7fafc;border:2px solid #9f7aea;border-radius:8px;padding:16px;">
+            <div style="font-weight:700;color:#553c9a;font-size:16px;margin-bottom:8px;">⚖️ Fairness Request Review</div>
+            <div style="font-size:13px;color:#718096;margin-bottom:12px;">Ranks competing requests by the oldest last-granted date. Never-granted staff rank first; ties use the fewest prior grants.</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end;">
+                <label style="font-size:13px;font-weight:600;">Request type<select id="fairnessRequestType" style="display:block;width:100%;margin-top:4px;padding:8px;"><option>PTO</option><option>R/O</option><option>Education</option><option>Other</option></select></label>
+                <label style="font-size:13px;font-weight:600;">Requested date<input id="fairnessRequestDate" type="date" style="display:block;width:100%;margin-top:4px;padding:8px;"></label>
+                <button class="btn" onclick="rankFairnessCandidates()">Rank selected staff</button>
+            </div>
+            <div id="fairnessCandidateList" style="margin-top:12px;max-height:220px;overflow:auto;border:1px solid #e2e8f0;border-radius:6px;padding:10px;"></div>
+            <div id="fairnessResults" style="margin-top:12px;"></div>
         </div>
     </div>
 
@@ -1241,6 +1254,8 @@
         document.getElementById('payPeriod').textContent = dates[0]?.date + ' to ' + dates[dates.length-1]?.date;
         document.getElementById('staffCount').textContent = staffRoster.length;
         renderStaffTable();
+        renderStaffBreakdown();
+        renderFairnessCandidates();
         rawData = { dates, staffRoster };
         populateProtectionList();
     }
@@ -1274,12 +1289,72 @@
         });
     }
 
-    function updateStaff(idx, field, value) { staffRoster[idx][field] = value; saveRoster(); }
+    function updateStaff(idx, field, value) { staffRoster[idx][field] = value; saveRoster(); renderStaffBreakdown(); renderFairnessCandidates(); }
     function saveRoster() {
         const rosterData = staffRoster.map(s => ({ name: s.name, type: s.type, skill: s.skill, shift: s.shift }));
         localStorage.setItem('cvicu_roster', JSON.stringify(rosterData));
     }
     function loadSavedRoster() { const saved = localStorage.getItem('cvicu_roster'); return saved ? JSON.parse(saved) : []; }
+
+    function renderStaffBreakdown() {
+        const target = document.getElementById('staffBreakdownContent');
+        if (!target || !staffRoster.length) return;
+        const metrics = staff => ({
+            Total: staff.length,
+            ANM: staff.filter(s => ANM_STAFF.includes(s.name)).length,
+            RN: staff.filter(s => s.job === 'RN').length,
+            'PCT/HUC': staff.filter(s => s.job === 'PCT' || s.job === 'HUC').length,
+            FT: staff.filter(s => s.type === 'FT').length,
+            PT: staff.filter(s => s.type === 'PT').length,
+            PRN: staff.filter(s => s.type === 'PRN').length,
+            CN: staff.filter(s => s.skill?.includes('CN')).length,
+            EB: staff.filter(s => s.skill?.includes('EB')).length,
+            ES: staff.filter(s => s.skill?.includes('ES')).length
+        });
+        const panel = (title, staff, color) => {
+            const counts = metrics(staff);
+            return `<div style="border:2px solid ${color};border-radius:8px;padding:12px;min-width:0;"><div style="font-weight:700;color:${color};margin-bottom:8px;">${title}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:6px;">${Object.entries(counts).map(([label,count])=>`<div style="background:#f7fafc;border-radius:6px;padding:7px;text-align:center;"><div style="font-size:20px;font-weight:800;color:${color};">${count}</div><div style="font-size:10px;color:#718096;">${label}</div></div>`).join('')}</div></div>`;
+        };
+        const day = staffRoster.filter(s => s.shift === 'AM' || s.shift === 'MIDSHIFT');
+        const night = staffRoster.filter(s => s.shift === 'PM');
+        target.innerHTML = `<div style="font-weight:700;margin-bottom:8px;">📊 Employee Breakdown Reference</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;">${panel('☀️ Day / MID',day,'#2b6cb0')}${panel('🌙 Night',night,'#553c9a')}</div>`;
+    }
+
+    function renderFairnessCandidates() {
+        const target = document.getElementById('fairnessCandidateList');
+        if (!target) return;
+        target.innerHTML = staffRoster.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(staff =>
+            `<label style="display:inline-flex;align-items:center;gap:5px;width:min(260px,100%);padding:4px;font-size:12px;"><input type="checkbox" class="fairness-candidate" value="${staff.name.replace(/&/g,'&amp;').replace(/"/g,'&quot;')}">${staff.name}</label>`
+        ).join('');
+    }
+
+    function loadRequestHistory() {
+        try { return JSON.parse(localStorage.getItem('cvicu_request_history') || '[]'); } catch(e) { return []; }
+    }
+
+    function getFairnessRanking(selected, type, history) {
+        return selected.map(name => {
+            const grants = history.filter(row => normalizeStaffName(row.employee) === normalizeStaffName(name) && String(row.requestType).toUpperCase() === type.toUpperCase() && String(row.decision).toUpperCase() === 'GRANTED');
+            const dates = grants.map(row => new Date(row.grantedDate || row.requestDate)).filter(date => !Number.isNaN(date.getTime())).sort((a,b)=>b-a);
+            return { name, grants: grants.length, lastGranted: dates[0] || null };
+        }).sort((a,b) => {
+            if (!a.lastGranted && b.lastGranted) return -1;
+            if (a.lastGranted && !b.lastGranted) return 1;
+            if (a.lastGranted && b.lastGranted && a.lastGranted-b.lastGranted !== 0) return a.lastGranted-b.lastGranted;
+            if (a.grants !== b.grants) return a.grants-b.grants;
+            return a.name.localeCompare(b.name);
+        });
+    }
+
+    function rankFairnessCandidates() {
+        const selected = [...document.querySelectorAll('.fairness-candidate:checked')].map(input => input.value);
+        const target = document.getElementById('fairnessResults');
+        if (selected.length < 2) { target.innerHTML = '<div class="alert alert-warning">Select at least two employees to compare.</div>'; return; }
+        const type = document.getElementById('fairnessRequestType').value;
+        const history = loadRequestHistory();
+        const ranked = getFairnessRanking(selected, type, history);
+        target.innerHTML = `<div class="alert alert-success"><strong>Recommended fairness order for ${type}</strong><br>Oldest or never-granted request history ranks first. Leadership still makes the final decision.</div><table class="staff-table"><thead><tr><th>Rank</th><th>Employee</th><th>Last granted</th><th>Prior grants</th></tr></thead><tbody>${ranked.map((item,index)=>`<tr><td>${index+1}</td><td>${item.name}</td><td>${item.lastGranted?item.lastGranted.toLocaleDateString():'Never / no history'}</td><td>${item.grants}</td></tr>`).join('')}</tbody></table>`;
+    }
 
     function populateProtectionList() {
         const listDiv = document.getElementById('protectionList');
@@ -1347,32 +1422,36 @@
         const reader = new FileReader();
         reader.onload = function(e) {
             try {
-                const text = e.target.result;
-                const lines = text.split('\n').filter(line => line.trim());
-                const parseCSVLine = (line) => {
-                    const result = []; let current = ''; let inQuotes = false;
-                    for (let i = 0; i < line.length; i++) {
-                        const char = line[i];
-                        if (char === '"') { inQuotes = !inQuotes; }
-                        else if (char === ',' && !inQuotes) { result.push(current.trim()); current = ''; }
-                        else { current += char; }
-                    }
-                    result.push(current.trim()); return result;
-                };
-                const database = {};
-                for (let i = 1; i < lines.length; i++) {
-                    const parts = parseCSVLine(lines[i]);
-                    if (parts.length >= 4) {
-                        const name = parts[0]; const job = parts[1]; const type = parts[2]; const shift = parts[3]||''; const skills = parts[4]||'';
-                        if (name) database[name] = { job, type, shift, skills };
-                    }
+                let rosterRows = [];
+                let historyRows = [];
+                if (file.name.toLowerCase().endsWith('.xlsx')) {
+                    const workbook = XLSX.read(e.target.result, {type:'array', cellDates:true});
+                    rosterRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {defval:''});
+                    const historyName = workbook.SheetNames.find(name => name.toLowerCase().includes('request history'));
+                    if (historyName) historyRows = XLSX.utils.sheet_to_json(workbook.Sheets[historyName], {defval:''});
+                } else {
+                    const workbook = XLSX.read(e.target.result, {type:'string'});
+                    rosterRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {defval:''});
                 }
+                const database = {};
+                rosterRows.forEach(row => {
+                    const name = row.Name || row.Employee || '';
+                    if (name) database[name] = { job:row.Job||'', type:row.Type||'FT', shift:row.Shift||'', skills:row.Skills||'' };
+                });
                 saveMasterDatabase(database);
-                alert(`✅ Loaded ${Object.keys(database).length} staff from master CSV`);
-                if (staffRoster.length > 0) { applyMasterDataToStaff(); renderStaffTable(); }
+                if (historyRows.length) {
+                    const normalizedHistory = historyRows.map(row => ({
+                        employee:row.Employee||row.Name||'', requestType:row['Request Type']||'', requestDate:row['Request Date']||'',
+                        requestedShiftDate:row['Requested Shift Date']||'', decision:row.Decision||'', grantedDate:row['Granted Date']||'', notes:row.Notes||''
+                    })).filter(row => row.employee);
+                    localStorage.setItem('cvicu_request_history', JSON.stringify(normalizedHistory));
+                }
+                alert(`✅ Loaded ${Object.keys(database).length} staff${historyRows.length?` and ${historyRows.length} request-history records`:''} from master file`);
+                if (staffRoster.length > 0) { applyMasterDataToStaff(); applyAuthoritativeRosterCorrections(); renderStaffTable(); renderStaffBreakdown(); renderFairnessCandidates(); }
             } catch (error) { alert('Error reading CSV: ' + error.message); }
         };
-        reader.readAsText(file);
+        if (file.name.toLowerCase().endsWith('.xlsx')) reader.readAsArrayBuffer(file);
+        else reader.readAsText(file);
         event.target.value = '';
     }
     function downloadMasterCSV() {
