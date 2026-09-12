@@ -589,6 +589,7 @@
     <div class="card hidden" id="rosterSection">
         <div class="card-title">👥 Step 3: Review Staff Roster &amp; Skills <span class="badge">Auto-saved</span></div>
         <div style="margin-bottom:16px;font-size:14px;color:#718096;">Edit skills (EB/ES/CN) and staff types. Changes are saved automatically.</div>
+        <div style="margin-bottom:10px;"><label style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;"><input type="checkbox" id="scheduledRosterOnly" onchange="renderStaffBreakdown()"> Show only employees scheduled in this uploaded period</label></div>
         <div id="staffBreakdownContent" style="margin-bottom:20px;"></div>
         <div class="alert alert-warning" style="margin-bottom:16px;">
             <strong>⚠️ Protected Staff:</strong> ANMs (Cruz, Rodriguez, Bruce) will never be moved during balancing.
@@ -600,6 +601,7 @@
                 <button class="btn btn-secondary" onclick="document.getElementById('masterCSVUpload').click()">📤 Upload Master Excel/CSV</button>
                 <button class="btn btn-secondary" onclick="saveCurrentAsMaster()">💾 Save Current as Master</button>
                 <button class="btn btn-secondary" onclick="showAddEmployeeForm()">➕ Add New Employee</button>
+                <button class="btn btn-secondary" onclick="downloadMasterWorkbook()">📗 Export Master Excel</button>
                 <button class="btn btn-secondary" onclick="downloadMasterCSV()">📥 Export Master CSV</button>
                 <button class="btn btn-secondary" onclick="clearMasterDatabase()" style="background:#f56565;">🗑️ Clear Database</button>
             </div>
@@ -632,12 +634,14 @@
 
         <div style="margin-top:20px;background:#f7fafc;border:2px solid #9f7aea;border-radius:8px;padding:16px;">
             <div style="font-weight:700;color:#553c9a;font-size:16px;margin-bottom:8px;">⚖️ Fairness Request Review</div>
-            <div style="font-size:13px;color:#718096;margin-bottom:12px;">Ranks competing requests by the oldest last-granted date. Never-granted staff rank first; ties use the fewest prior grants.</div>
+            <div style="font-size:13px;color:#718096;margin-bottom:12px;">Ranks competing requests within the same category by the oldest last-granted date. Never-granted staff rank first; ties use the fewest prior grants.</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end;">
-                <label style="font-size:13px;font-weight:600;">Request type<select id="fairnessRequestType" style="display:block;width:100%;margin-top:4px;padding:8px;"><option>PTO</option><option>R/O</option><option>Education</option><option>Other</option></select></label>
+                <label style="font-size:13px;font-weight:600;">Request category<select id="fairnessRequestType" style="display:block;width:100%;margin-top:4px;padding:8px;"><option>Routine PTO</option><option>Major Holiday</option><option>Summer Weekend</option><option>Requested Off</option><option>Education</option><option>Other</option></select></label>
                 <label style="font-size:13px;font-weight:600;">Requested date<input id="fairnessRequestDate" type="date" style="display:block;width:100%;margin-top:4px;padding:8px;"></label>
+                <label style="font-size:13px;font-weight:600;">Decided by<input id="fairnessDecidedBy" type="text" placeholder="Scheduler / manager" style="display:block;width:100%;margin-top:4px;padding:8px;"></label>
                 <button class="btn" onclick="rankFairnessCandidates()">Rank selected staff</button>
             </div>
+            <label style="display:block;font-size:13px;font-weight:600;margin-top:10px;">Decision notes<input id="fairnessDecisionNotes" type="text" placeholder="Optional reason or tie-break note" style="display:block;width:100%;margin-top:4px;padding:8px;"></label>
             <div id="fairnessCandidateList" style="margin-top:12px;max-height:220px;overflow:auto;border:1px solid #e2e8f0;border-radius:6px;padding:10px;"></div>
             <div id="fairnessResults" style="margin-top:12px;"></div>
         </div>
@@ -1299,6 +1303,10 @@
     function renderStaffBreakdown() {
         const target = document.getElementById('staffBreakdownContent');
         if (!target || !staffRoster.length) return;
+        const scheduledOnly = !!document.getElementById('scheduledRosterOnly')?.checked;
+        const rosterView = scheduledOnly
+            ? staffRoster.filter(staff => Object.values(staff.rawShifts || staff.shifts || {}).some(value => String(value || '').trim()))
+            : staffRoster;
         const metrics = staff => ({
             Total: staff.length,
             ANM: staff.filter(s => ANM_STAFF.includes(s.name)).length,
@@ -1315,9 +1323,9 @@
             const counts = metrics(staff);
             return `<div style="border:2px solid ${color};border-radius:8px;padding:12px;min-width:0;"><div style="font-weight:700;color:${color};margin-bottom:8px;">${title}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:6px;">${Object.entries(counts).map(([label,count])=>`<div style="background:#f7fafc;border-radius:6px;padding:7px;text-align:center;"><div style="font-size:20px;font-weight:800;color:${color};">${count}</div><div style="font-size:10px;color:#718096;">${label}</div></div>`).join('')}</div></div>`;
         };
-        const day = staffRoster.filter(s => s.shift === 'AM' || s.shift === 'MIDSHIFT');
-        const night = staffRoster.filter(s => s.shift === 'PM');
-        target.innerHTML = `<div style="font-weight:700;margin-bottom:8px;">📊 Employee Breakdown Reference</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;">${panel('☀️ Day / MID',day,'#2b6cb0')}${panel('🌙 Night',night,'#553c9a')}</div>`;
+        const day = rosterView.filter(s => s.shift === 'AM' || s.shift === 'MIDSHIFT');
+        const night = rosterView.filter(s => s.shift === 'PM');
+        target.innerHTML = `<div style="font-weight:700;margin-bottom:8px;">📊 Employee Breakdown Reference <span style="font-size:11px;color:#718096;font-weight:500;">(${scheduledOnly?'scheduled in this period':'active master roster'})</span></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;">${panel('☀️ Day / MID',day,'#2b6cb0')}${panel('🌙 Night',night,'#553c9a')}</div>`;
     }
 
     function renderFairnessCandidates() {
@@ -1333,8 +1341,13 @@
     }
 
     function getFairnessRanking(selected, type, history) {
+        const categoryAliases = {
+            'ROUTINE PTO':['ROUTINE PTO','PTO'],
+            'REQUESTED OFF':['REQUESTED OFF','R/O','RO']
+        };
+        const acceptedTypes = categoryAliases[type.toUpperCase()] || [type.toUpperCase()];
         return selected.map(name => {
-            const grants = history.filter(row => normalizeStaffName(row.employee) === normalizeStaffName(name) && String(row.requestType).toUpperCase() === type.toUpperCase() && String(row.decision).toUpperCase() === 'GRANTED');
+            const grants = history.filter(row => normalizeStaffName(row.employee) === normalizeStaffName(name) && acceptedTypes.includes(String(row.requestType).toUpperCase()) && String(row.decision).toUpperCase() === 'GRANTED');
             const dates = grants.map(row => new Date(row.grantedDate || row.requestDate)).filter(date => !Number.isNaN(date.getTime())).sort((a,b)=>b-a);
             return { name, grants: grants.length, lastGranted: dates[0] || null };
         }).sort((a,b) => {
@@ -1353,7 +1366,21 @@
         const type = document.getElementById('fairnessRequestType').value;
         const history = loadRequestHistory();
         const ranked = getFairnessRanking(selected, type, history);
-        target.innerHTML = `<div class="alert alert-success"><strong>Recommended fairness order for ${type}</strong><br>Oldest or never-granted request history ranks first. Leadership still makes the final decision.</div><table class="staff-table"><thead><tr><th>Rank</th><th>Employee</th><th>Last granted</th><th>Prior grants</th></tr></thead><tbody>${ranked.map((item,index)=>`<tr><td>${index+1}</td><td>${item.name}</td><td>${item.lastGranted?item.lastGranted.toLocaleDateString():'Never / no history'}</td><td>${item.grants}</td></tr>`).join('')}</tbody></table>`;
+        target.innerHTML = `<div class="alert alert-success"><strong>Recommended fairness order for ${type}</strong><br>Oldest or never-granted history in this category ranks first. Leadership still makes the final decision.</div><table class="staff-table"><thead><tr><th>Rank</th><th>Employee</th><th>Last granted</th><th>Prior grants</th><th>Record decision</th></tr></thead><tbody>${ranked.map((item,index)=>`<tr><td>${index+1}</td><td>${item.name}</td><td>${item.lastGranted?item.lastGranted.toLocaleDateString():'Never / no history'}</td><td>${item.grants}</td><td><button class="btn" style="padding:5px 8px;background:#38a169;" onclick='recordRequestDecision(${JSON.stringify(item.name)},"Granted")'>Grant</button> <button class="btn btn-secondary" style="padding:5px 8px;background:#718096;" onclick='recordRequestDecision(${JSON.stringify(item.name)},"Declined")'>Decline</button></td></tr>`).join('')}</tbody></table>`;
+    }
+
+    function recordRequestDecision(employee, decision) {
+        const requestType = document.getElementById('fairnessRequestType').value;
+        const requestedShiftDate = document.getElementById('fairnessRequestDate').value;
+        const decidedBy = document.getElementById('fairnessDecidedBy').value.trim();
+        const notes = document.getElementById('fairnessDecisionNotes').value.trim();
+        if (!requestedShiftDate) { alert('Select the requested date before recording a decision.'); return; }
+        const history = loadRequestHistory();
+        const today = new Date().toISOString().slice(0,10);
+        history.push({ employee, requestType, requestDate:today, requestedShiftDate, decision, grantedDate:decision==='Granted'?today:'', decidedBy, notes });
+        localStorage.setItem('cvicu_request_history', JSON.stringify(history));
+        alert(`Recorded: ${decision} — ${employee}`);
+        rankFairnessCandidates();
     }
 
     function populateProtectionList() {
@@ -1442,7 +1469,7 @@
                 if (historyRows.length) {
                     const normalizedHistory = historyRows.map(row => ({
                         employee:row.Employee||row.Name||'', requestType:row['Request Type']||'', requestDate:row['Request Date']||'',
-                        requestedShiftDate:row['Requested Shift Date']||'', decision:row.Decision||'', grantedDate:row['Granted Date']||'', notes:row.Notes||''
+                        requestedShiftDate:row['Requested Shift Date']||'', decision:row.Decision||'', grantedDate:row['Granted Date']||'', decidedBy:row['Decided By']||row['Reviewed By']||'', notes:row.Notes||''
                     })).filter(row => row.employee);
                     localStorage.setItem('cvicu_request_history', JSON.stringify(normalizedHistory));
                 }
@@ -1463,6 +1490,24 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href = url; a.download = 'CVICU_Master_Staff_Database.csv'; a.click();
         URL.revokeObjectURL(url);
+    }
+    function downloadMasterWorkbook() {
+        const database = loadMasterDatabase();
+        if (Object.keys(database).length === 0) { alert('⚠️ No staff in master database'); return; }
+        const wb = XLSX.utils.book_new();
+        const roster = [['Name','Job','Type','Shift','Skills'], ...Object.entries(database).sort((a,b)=>a[0].localeCompare(b[0])).map(([name,data])=>[name,data.job,data.type,data.shift||'',data.skills||''])];
+        const history = [['Employee','Request Type','Request Date','Requested Shift Date','Decision','Granted Date','Decided By','Notes'], ...loadRequestHistory().map(row=>[row.employee,row.requestType,row.requestDate,row.requestedShiftDate,row.decision,row.grantedDate,row.decidedBy||'',row.notes||''])];
+        const rosterWs = XLSX.utils.aoa_to_sheet(roster);
+        rosterWs['!cols'] = [{wch:28},{wch:10},{wch:10},{wch:12},{wch:22}];
+        rosterWs['!autofilter'] = {ref:`A1:E${roster.length}`};
+        rosterWs['!views'] = [{state:'frozen',xSplit:1,ySplit:1}];
+        const historyWs = XLSX.utils.aoa_to_sheet(history);
+        historyWs['!cols'] = [{wch:28},{wch:20},{wch:14},{wch:20},{wch:12},{wch:14},{wch:20},{wch:40}];
+        historyWs['!autofilter'] = {ref:`A1:H${history.length}`};
+        historyWs['!views'] = [{state:'frozen',xSplit:1,ySplit:1}];
+        XLSX.utils.book_append_sheet(wb, rosterWs, 'Master Roster');
+        XLSX.utils.book_append_sheet(wb, historyWs, 'Request History');
+        XLSX.writeFile(wb, 'CVICU_Master_Staff_Database.xlsx', {cellStyles:true});
     }
     function showAddEmployeeForm() { document.getElementById('addEmployeeForm').classList.remove('hidden'); }
     function hideAddEmployeeForm() {
@@ -3312,7 +3357,69 @@
         const dates = rawData.dates.map(d => d.date);
         const data = [['ORIGINAL MYTIME IMPORT (PRE-BALANCE)'],['Name','Job','Type','Skills',...dates]];
         staffRoster.forEach(staff => { data.push([staff.name,staff.job,staff.type,staff.skill,...dates.map(d=>staff.rawShifts?.[d]||staff.shifts[d]||'')]); });
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), 'Original MyTime');
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        ws['!cols'] = [{wch:28},{wch:10},{wch:9},{wch:18},...dates.map(()=>({wch:13}))];
+        ws['!autofilter'] = {ref:`A2:${XLSX.utils.encode_col(dates.length+3)}${data.length}`};
+        ws['!views'] = [{state:'frozen',xSplit:4,ySplit:2}];
+        ws['!pageSetup'] = {orientation:'landscape',fitToWidth:1,fitToHeight:0};
+        XLSX.utils.book_append_sheet(wb, ws, 'Original MyTime');
+    }
+
+    function appendOperationalSheets(wb) {
+        const dates = rawData.dates.map(d => d.date);
+        const headerStyle = {fill:{patternType:'solid',fgColor:{rgb:'FF1F3864'}},font:{bold:true,color:{rgb:'FFFFFFFF'}},alignment:{horizontal:'center',vertical:'center',wrapText:true}};
+        const formatSheet = (ws, widths, filterRef) => {
+            ws['!cols'] = widths.map(wch=>({wch}));
+            if (filterRef) ws['!autofilter'] = {ref:filterRef};
+            ws['!views'] = [{state:'frozen',xSplit:1,ySplit:1}];
+            ws['!pageSetup'] = {orientation:'landscape',fitToWidth:1,fitToHeight:0};
+            const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:A1');
+            for (let c=range.s.c;c<=range.e.c;c++) { const addr=XLSX.utils.encode_cell({r:0,c}); if (ws[addr]) ws[addr].s=headerStyle; }
+        };
+
+        const openNeeds = [['Date','Day','Shift','Deficit Role','Missing','Specialty / Detail','Priority']];
+        const addNeeds = (mode, result) => {
+            if (!result) return;
+            const counting = mode==='day' ? ['7A','MID','ANM_CN'] : ['7P'];
+            result.dates.forEach(date => {
+                const gaps = getGaps(date,result.simulation,counting);
+                ['RN','CN','ES','EB','PCT'].concat(mode==='day'?['MID']:[]).forEach(role => {
+                    if (!(gaps[role] > 0)) return;
+                    const priority = ['RN','CN','ES'].includes(role) ? 'CRITICAL' : role==='EB' ? 'HIGH' : 'MEDIUM';
+                    const detail = role==='PCT' ? 'PCT/HUC floor support' : role==='CN' ? 'Assigned charge coverage' : role==='ES' ? 'ECMO specialist' : role==='EB' ? 'ECMO bedside skill' : role==='MID' ? 'Mid-shift coverage' : 'Bedside RN coverage';
+                    const dt=parseDate(date);
+                    openNeeds.push([date,dt.toLocaleDateString('en-US',{weekday:'short'}),mode==='day'?'Day':'Night',role,gaps[role],detail,priority]);
+                });
+            });
+        };
+        addNeeds('day',balancedResults.day); addNeeds('night',balancedResults.night);
+        if (openNeeds.length===1) openNeeds.push(['','','','','0','No unresolved coverage deficits','']);
+        const openWs=XLSX.utils.aoa_to_sheet(openNeeds); formatSheet(openWs,[14,10,10,16,10,28,12],`A1:G${openNeeds.length}`); XLSX.utils.book_append_sheet(wb,openWs,'Open Needs');
+
+        const weekly = [['Employee','Shift','Type','Week Start','Clinical/Credited Shifts','Estimated Hours','Review Flag']];
+        staffRoster.filter(s=>!ANM_STAFF.includes(s.name)).forEach(staff => {
+            const result = staff.shift==='PM' ? balancedResults.night : balancedResults.day;
+            if (!result) return;
+            for (let start=0;start<dates.length;start+=7) {
+                const weekDates=dates.slice(start,start+7);
+                const shiftCount=weekDates.filter(date=>countsTowardCommitment(result.simulation[staff.name]?.[date])).length;
+                weekly.push([staff.name,staff.shift==='PM'?'Night':'Day / MID',staff.type,weekDates[0],shiftCount,shiftCount*12,shiftCount>3?'REVIEW > 3 shifts':'']);
+            }
+        });
+        const weeklyWs=XLSX.utils.aoa_to_sheet(weekly); formatSheet(weeklyWs,[28,13,9,14,24,16,22],`A1:G${weekly.length}`); XLSX.utils.book_append_sheet(wb,weeklyWs,'Weekly Shift Review');
+
+        const weekend = [['Employee','Shift','Type','Weekend Shifts','Sunday Shifts','Weekend Requirement','Sunday Requirement','Status']];
+        const seen=new Set();
+        [balancedResults.day,balancedResults.night].filter(Boolean).forEach(result => {
+            Object.entries(checkWeekendRequirements(result.simulation,staffRoster)).forEach(([name,item]) => {
+                if (seen.has(name)) return; seen.add(name);
+                weekend.push([name,item.shiftType==='day'?'Day':'Night',item.type,item.weekendCount,item.sundayCount,item.required,item.sundaysRequired,item.meetsRequirement?'Meets':'Below']);
+            });
+        });
+        const weekendWs=XLSX.utils.aoa_to_sheet(weekend); formatSheet(weekendWs,[28,12,9,18,16,22,20,12],`A1:H${weekend.length}`); XLSX.utils.book_append_sheet(wb,weekendWs,'Weekend Equity');
+
+        const history=[['Employee','Request Type','Request Date','Requested Shift Date','Decision','Granted Date','Decided By','Notes'],...loadRequestHistory().map(row=>[row.employee,row.requestType,row.requestDate,row.requestedShiftDate,row.decision,row.grantedDate,row.decidedBy||'',row.notes||''])];
+        const historyWs=XLSX.utils.aoa_to_sheet(history); formatSheet(historyWs,[28,20,14,20,12,14,20,40],`A1:H${history.length}`); XLSX.utils.book_append_sheet(wb,historyWs,'Request History');
     }
 
     function downloadFullWorkbook() {
@@ -3411,10 +3518,13 @@
             });
             ws['!cols'] = [{wch:26},{wch:10},{wch:8},{wch:14},...dates.map(()=>({wch:11})),{wch:12},{wch:10},{wch:9}];
             ws['!autofilter'] = { ref:`A2:${XLSX.utils.encode_col(movesCol)}${included.length+2}` };
+            ws['!views'] = [{state:'frozen',xSplit:4,ySplit:2}];
+            ws['!pageSetup'] = {orientation:'landscape',fitToWidth:1,fitToHeight:0};
             XLSX.utils.book_append_sheet(wb, ws, mode === 'day' ? 'Day Balanced' : 'Night Balanced');
         };
         addBalancedSheet('day', balancedResults.day);
         addBalancedSheet('night', balancedResults.night);
+        appendOperationalSheets(wb);
         addOriginalMyTimeSheet(wb);
         XLSX.writeFile(wb, 'CVICU_Full_Balanced_Workbook.xlsx', { cellStyles: true });
     }

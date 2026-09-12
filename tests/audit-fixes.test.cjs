@@ -77,4 +77,12 @@ const fairnessOrder = vm.runInContext(`getFairnessRanking(
 ).map(item => item.name)`, context);
 assert.deepEqual([...fairnessOrder], ['Nurse, Never','Nurse, Oldest','Nurse, Recent']);
 
+assert.match(html, /Show only employees scheduled in this uploaded period/);
+assert.match(html, /function recordRequestDecision\(/);
+assert.match(html, /'Open Needs'/);
+assert.match(html, /'Weekly Shift Review'/);
+assert.match(html, /'Weekend Equity'/);
+assert.match(html, /'Request History'/);
+assert.match(html, /state:'frozen',xSplit:4,ySplit:2/);
+
 console.log('audit-fixes tests passed');
