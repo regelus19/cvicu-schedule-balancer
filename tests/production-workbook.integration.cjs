@@ -27,7 +27,24 @@ const result = vm.runInContext(`({
   late: staffRoster.filter(s => detectLateSubmitter(s)).map(s => s.name)
 })`, context);
 assert.equal(result.dates.length, 42);
-assert.equal(result.staff.length, 118);
+assert.equal(result.staff.length, 121);
+assert.ok(!result.staff.some(staff => staff.name.toUpperCase() === 'SALA, JOSE F'));
+const correctedStaff = Object.fromEntries(result.staff.map(staff => [staff.name.toUpperCase(), staff]));
+const expectedCorrections = {
+  'WELLS, SYDNEY N': ['FT','AM'], 'CHEN, MAGGIE M': ['FT','AM'], 'JIMENEZ, KRYSTAL': ['FT','AM'],
+  'QUINONES, QUIRYAT J': ['PRN','PM'], 'HEATH, LOGAN': ['FT','AM'], 'MAKINDE, ANDREW': ['FT','AM'],
+  'PFAFF, LILLIAN G': ['FT','AM'], 'SIEBERT, REAGAN': ['FT','AM'], 'ALDAPE, ABIGAIL C': ['FT','AM'],
+  'ALFRED, AJUMA': ['FT','PM'], 'AVALOS, JORGE': ['PRN','AM'], 'BIRD, DAVID': ['FT','PM'],
+  'BOTKIN, SAMANTHA': ['FT','PM'], 'CALLICOATTE, ADINA': ['FT','PM'], 'DAVIS, SYDNEY': ['FT','PM'],
+  'HARTY, KELLY': ['PRN','AM'], 'NGUYEN, THIARA': ['FT','PM'], 'ROBERTS, ARIANA': ['FT','PM']
+};
+for (const [name, [type, shift]] of Object.entries(expectedCorrections)) {
+  assert.ok(correctedStaff[name], `${name} should be included`);
+  assert.equal(correctedStaff[name].type, type, `${name} type`);
+  assert.equal(correctedStaff[name].shift, shift, `${name} shift`);
+}
+assert.ok(correctedStaff['GENTOLIA, KRISTI']);
+assert.ok(Object.values(correctedStaff['GENTOLIA, KRISTI'].shifts).some(Boolean));
 assert.equal(result.dates[0].date, '10/4/ 2026');
 assert.equal(result.dates.at(-1).date, '11/14/ 2026');
 assert.ok(result.classifications.includes('ANM_CN'));
