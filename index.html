@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CVICU Schedule Balancer v31</title>
+    <title>CVICU Schedule Balancer v31.1</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
@@ -71,10 +71,10 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v31</span></h1>
+        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v31.1</span></h1>
         <p class="subtitle">Upload MyTime export → Auto-balance → Download Excel/CSV</p>
         <div style="margin-top:10px;padding:8px 14px;background:#e6fffa;border-radius:6px;font-size:13px;color:#234e52;display:inline-block;">
-            ✅ v31 Current: RN counts leveled to a 15–16 band (day &amp; night) | Weekend MAX caps removed — minimums still apply | ECMO nurses removed from roster | HUC/US included (6W18H=7A, 18W6H=7P) | MID weekday min 2 / weekend min 1 | C codes=PTO | R codes=R/O | Open x=EDU | 10W22+12W00=MID | Score card | Colored schedule download | Master staff database hardwired (114 staff)
+            ✅ v31.1 Current: RN totals always match the rows shown | Any MyTime AMGR treated as ANM | RN counts leveled to a 15–16 band (day &amp; night) | Weekend MAX caps removed — minimums still apply | ECMO nurses removed from roster | HUC/US included (6W18H=7A, 18W6H=7P) | MID weekday min 2 / weekend min 1 | C codes=PTO | R codes=R/O | Open x=EDU | 10W22+12W00=MID | Score card | Colored schedule download | Master staff database hardwired (114 staff)
         </div>
     </div>
 
@@ -821,7 +821,7 @@
         "Kirk, Greg B": {"type":"FT","skill":"ES","job":"RN","shift":"PM"},
         "Kuriakose, Hannah S": {"type":"FT","skill":"","job":"RN","shift":"PM"},
         "Langford, Robyn J": {"type":"FT","skill":"","job":"PCT","shift":"AM"},
-        "Lee, Haeun": {"type":"FT","skill":"EB","job":"RN","shift":"PM"},
+        "Lee, Haeun": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
         "Lias, Imani A": {"type":"FT","skill":"","job":"HUC","shift":"AM"},
         "Macias, Gissela": {"type":"FT","skill":"","job":"PCT","shift":"PM"},
         "Mahowald, Caroline R": {"type":"FT","skill":"EB/CN","job":"RN","shift":"AM"},
@@ -832,9 +832,11 @@
         "Mathews, Ana R": {"type":"PRN","skill":"","job":"PCT","shift":"PM"},
         "McKeown, Melanie V": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
         "McLean, Elyssa": {"type":"FT","skill":"EB/CN","job":"RN","shift":"AM"},
+        "Peak, Elyssa": {"type":"FT","skill":"EB/CN","job":"RN","shift":"AM"},
+        "Nguyen, Thiara T": {"type":"FT","skill":"","job":"RN","shift":"PM"},
         "Nance, Victoria": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
         "Oberhelman, Kassidy L": {"type":"FT","skill":"ES/CN","job":"RN","shift":"PM"},
-        "Ortiz, Karina": {"type":"FT","skill":"EB","job":"RN","shift":"PM"},
+        "Ortiz, Karina": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
         "Ortiz, Susana": {"type":"FT","skill":"","job":"PCT","shift":"AM"},
         "PRINCE DIAMONDRAJ, FRANCIS M": {"type":"FT","skill":"EB","job":"RN","shift":"PM"},
         "Paddyaker, Spencer": {"type":"FT","skill":"ES","job":"RN","shift":"AM"},
@@ -890,7 +892,9 @@
         'Wells, Sydney N','Chen, Maggie M','Jimenez, Krystal','Quinones, Quiryat J','Heath, Logan',
         'Makinde, Andrew','Pfaff, Lillian G','Siebert, Reagan','Aldape, Abigail C','Alfred, Ajuma',
         'Avalos, Jorge','Bird, David','Botkin, Samantha','Callicoatte, Adina','Davis, Sydney',
-        'Harty, Kelly','Nguyen, Thiara','Roberts, Ariana'
+        'Harty, Kelly','Nguyen, Thiara','Roberts, Ariana',
+        // v31.1: moved to days / renamed / name variant in MyTime
+        'Lee, Haeun','Ortiz, Karina','Peak, Elyssa','Nguyen, Thiara T'
     ];
     const normalizeStaffName = name => String(name || '').trim().replace(/\s+/g, ' ').toUpperCase();
     const findRosterRecord = name => Object.entries(STAFF_ROSTER_LOOKUP).find(([key]) => normalizeStaffName(key) === normalizeStaffName(name))?.[1];
@@ -1238,9 +1242,13 @@
             const staffSkill = correction?.skill || masterData?.skills || saved?.skill || parsed.skills || excelSkill || embedded?.skill || '';
             const staffShift = correction?.shift || masterData?.shift || saved?.shift || parsed.shift || embedded?.shift || detectShiftType(shifts);
 
+            // v31.1: any AMGR in MyTime is an ANM — never balanced, never moved
+            if ((String(job).toUpperCase().includes('AMGR') || staffRole === 'AMGR') && !ANM_STAFF.includes(name)) ANM_STAFF.push(name);
+            // v31.1: shift fallback from detectShiftType returns 'day'/'night' — normalize to AM/PM
+            const normShift = staffShift === 'day' ? 'AM' : staffShift === 'night' ? 'PM' : staffShift;
             staffRoster.push({
                 name, job: staffRole === 'AMGR' ? 'RN' : staffRole,
-                type: staffType, skill: staffSkill, shift: staffShift, shifts, rawShifts
+                type: staffType, skill: staffSkill, shift: normShift, shifts, rawShifts
             });
         }
 
@@ -1249,7 +1257,8 @@
         Object.entries(STAFF_ROSTER_LOOKUP).forEach(([name, record]) => {
             if (!CORRECTED_STAFF_NAMES.some(corrected => normalizeStaffName(corrected) === normalizeStaffName(name))) return;
             if (REMOVED_STAFF.some(removed => normalizeStaffName(removed) === normalizeStaffName(name))) return;
-            if (importedNames.has(normalizeStaffName(name))) return;
+            const key = normalizeStaffName(name);
+            if ([...importedNames].some(n => n === key || n.startsWith(key + ' '))) return; // v31.1: 'Nguyen, Thiara' = 'Nguyen, Thiara T'
             staffRoster.push({ name, job: record.job === 'AMGR' ? 'RN' : record.job, type: record.type, skill: record.skill, shift: record.shift, shifts: {}, rawShifts: {} });
         });
 
@@ -3096,6 +3105,15 @@
                 { label: 'RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='PM'&&s.job==='RN'&&!s.skill?.includes('EB')&&!s.skill?.includes('ES')&&!s.skill?.includes('CN')) },
                 { label: 'PCTs/HUCs', staff: staffRoster.filter(s=>(s.job==='PCT'||s.job==='HUC')&&s.shift==='PM'&&!EXCLUDED_STAFF.includes(s.name)) },
             ];
+
+            // v31.1 SAFETY NET: every person counted in the totals must appear as a row.
+            // Staff whose roster shift doesn't match (e.g. a night nurse picking up a day) get their own group.
+            {
+                const shown = new Set(groups.flatMap(g => g.staff.map(s => s.name)));
+                const worksHere = s => dates.some(d => { const v = simulation[s.name]?.[d]; return counting.includes(v) || (isDay && (v === 'MID' || v === 'ANM_CN')); });
+                const extras = staffRoster.filter(s => !shown.has(s.name) && !EXCLUDED_STAFF.includes(s.name) && worksHere(s));
+                if (extras.length) groups.splice(groups.length - 1, 0, { label: `Also working ${isDay ? 'days' : 'nights'} — roster lists a different shift (please verify)`, staff: extras });
+            }
 
             groups.forEach(grp => {
                 if (!grp.staff.length) return;
