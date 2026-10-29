@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CVICU Schedule Balancer v30</title>
+    <title>CVICU Schedule Balancer v31</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
@@ -71,10 +71,10 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v28</span></h1>
+        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v31</span></h1>
         <p class="subtitle">Upload MyTime export → Auto-balance → Download Excel/CSV</p>
         <div style="margin-top:10px;padding:8px 14px;background:#e6fffa;border-radius:6px;font-size:13px;color:#234e52;display:inline-block;">
-            ✅ v30 Current: Weekend caps enforced (FT Day max 5, FT Night max 7) | HUC/US included (6W18H=7A, 18W6H=7P) | MID weekday min 2 / weekend min 1 | C codes=PTO | R codes=R/O | Open x=EDU | 10W22+12W00=MID | Score card | Colored schedule download | Master staff database hardwired (114 staff)
+            ✅ v31 Current: RN counts leveled to a 15–16 band (day &amp; night) | Weekend MAX caps removed — minimums still apply | ECMO nurses removed from roster | HUC/US included (6W18H=7A, 18W6H=7P) | MID weekday min 2 / weekend min 1 | C codes=PTO | R codes=R/O | Open x=EDU | 10W22+12W00=MID | Score card | Colored schedule download | Master staff database hardwired (114 staff)
         </div>
     </div>
 
@@ -106,7 +106,7 @@
                 </div>
                 <div>
                     <div style="color:#90cdf4;font-weight:600;margin-bottom:4px;">📤 How to Share</div>
-                    <div>Send the <strong>CVICU_Balancer_v30.html</strong> file as an email attachment, via Teams, or upload to SharePoint. Recipients just open it in their browser — no installation needed.</div>
+                    <div>Send the <strong>CVICU_Balancer_v31.html</strong> file as an email attachment, via Teams, or upload to SharePoint. Recipients just open it in their browser — no installation needed.</div>
                 </div>
                 <div>
                     <div style="color:#90cdf4;font-weight:600;margin-bottom:4px;">🔒 Data Stays on Your Computer</div>
@@ -242,8 +242,8 @@
                     <div>Weekday min 2, Weekend min 1. Permanent: Hickman &amp; Kesbeh. 4 others rotate every 6 weeks.</div>
                 </div>
                 <div>
-                    <div style="color:#fbd38d;font-weight:600;">Weekend Caps (enforced)</div>
-                    <div>FT Day: max 5 weekends. FT Night: max 7. PT Day: max 4. PT Night: max 5. Prevents over-assigning.</div>
+                    <div style="color:#fbd38d;font-weight:600;">Weekend Maximums (removed)</div>
+                    <div>No weekend maximum. Staff must still meet minimums (FT Day 5 + 2 Sundays, FT Night 7, PT 4) and may work extra weekends.</div>
                 </div>
                 <div>
                     <div style="color:#fbd38d;font-weight:600;">C codes = PTO</div>
@@ -412,12 +412,12 @@
                 </table>
             </div>
             <div style="background:#ebf8ff;border:2px solid #90cdf4;border-radius:8px;padding:14px;">
-                <div style="font-weight:700;color:#2c5282;font-size:14px;margin-bottom:8px;">📅 Weekend Requirements &amp; CAPS</div>
+                <div style="font-weight:700;color:#2c5282;font-size:14px;margin-bottom:8px;">📅 Weekend Requirements (minimums only)</div>
                 <table style="width:100%;font-size:12px;border-collapse:collapse;">
-                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">FT Day</td><td style="padding:3px 6px;">Min 5 weekends (Sat/Sun) — <strong>Cap: max 5</strong></td></tr>
-                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">FT Night</td><td style="padding:3px 6px;">Min 7 weekend shifts (Fri/Sat/Sun) — <strong>Cap: max 7</strong></td></tr>
-                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">PT Day</td><td style="padding:3px 6px;">Min 4 weekends + 2 Sundays — <strong>Cap: max 4</strong></td></tr>
-                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">PT Night</td><td style="padding:3px 6px;">Min 5 weekend shifts — <strong>Cap: max 5</strong></td></tr>
+                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">FT Day</td><td style="padding:3px 6px;">Min 5 weekends (Sat/Sun) + 2 Sundays — <strong>no max</strong></td></tr>
+                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">FT Night</td><td style="padding:3px 6px;">Min 7 weekend shifts (Fri/Sat/Sun) — <strong>no max</strong></td></tr>
+                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">PT Day</td><td style="padding:3px 6px;">Min 4 weekends + 2 Sundays — <strong>no max</strong></td></tr>
+                    <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">PT Night</td><td style="padding:3px 6px;">Min 4 weekend shifts — <strong>no max</strong></td></tr>
                     <tr style="border-bottom:1px solid #90cdf4;"><td style="padding:3px 6px;font-weight:600;">MID (perm)</td><td style="padding:3px 6px;">Weekend cap ≤3 per 6 weeks</td></tr>
                     <tr><td style="padding:3px 6px;font-weight:600;">PRN</td><td style="padding:3px 6px;">No weekend requirement</td></tr>
                 </table>
@@ -503,36 +503,36 @@
                     <div class="slider-group">
                         <div class="slider-label">
                             <span>Mon/Tue/Wed/Fri Max offset</span>
-                            <span class="slider-value">+<span id="rnWdCapVal">3</span> → max <span id="rnWdMaxDisplay">18</span></span>
+                            <span class="slider-value">+<span id="rnWdCapVal">1</span> → max <span id="rnWdMaxDisplay">16</span></span>
                         </div>
-                        <input type="range" id="rnWdCapSlider" min="0" max="4" value="3">
+                        <input type="range" id="rnWdCapSlider" min="0" max="4" value="1">
                     </div>
                     <div class="slider-group">
                         <div class="slider-label">
                             <span>🔧 Thursday Max offset (dressing day)</span>
-                            <span class="slider-value">+<span id="rnThuCapVal">4</span> → max <span id="rnThuMaxDisplay">19</span></span>
+                            <span class="slider-value">+<span id="rnThuCapVal">1</span> → max <span id="rnThuMaxDisplay">16</span></span>
                         </div>
-                        <input type="range" id="rnThuCapSlider" min="0" max="4" value="4">
+                        <input type="range" id="rnThuCapSlider" min="0" max="4" value="1">
                     </div>
                 </div>
                 <div>
                     <div class="slider-group">
-                        <div class="slider-label"><span>📅 RN Weekend Min</span><span class="slider-value" id="rnWeValue">14</span></div>
-                        <input type="range" id="rnWeSlider" min="1" max="30" value="14">
+                        <div class="slider-label"><span>📅 RN Weekend Min</span><span class="slider-value" id="rnWeValue">15</span></div>
+                        <input type="range" id="rnWeSlider" min="1" max="30" value="15">
                     </div>
                     <div class="slider-group">
                         <div class="slider-label">
                             <span>Saturday Max offset</span>
-                            <span class="slider-value">+<span id="rnSatCapVal">1</span> → max <span id="rnSatMaxDisplay">15</span></span>
+                            <span class="slider-value">+<span id="rnSatCapVal">1</span> → max <span id="rnSatMaxDisplay">16</span></span>
                         </div>
                         <input type="range" id="rnSatCapSlider" min="0" max="4" value="1">
                     </div>
                     <div class="slider-group">
                         <div class="slider-label">
                             <span>Sunday Max offset (dressing day)</span>
-                            <span class="slider-value">+<span id="rnSunCapVal">2</span> → max <span id="rnSunMaxDisplay">16</span></span>
+                            <span class="slider-value">+<span id="rnSunCapVal">1</span> → max <span id="rnSunMaxDisplay">16</span></span>
                         </div>
-                        <input type="range" id="rnSunCapSlider" min="0" max="4" value="2">
+                        <input type="range" id="rnSunCapSlider" min="0" max="4" value="1">
                     </div>
                 </div>
             </div>
@@ -883,7 +883,9 @@
     };
 
     const ANM_STAFF = ['Cruz, Rowena','Rodriguez, Althea Nadine','Bruce, Jessica','Wells, Sydney N'];
-    const REMOVED_STAFF = ['Sala, Jose F'];
+    const REMOVED_STAFF = ['Sala, Jose F',
+        // v31: ECMO nurses removed from roster and all outputs (per Rowena)
+        'Boepple, Leslie C','Crawford, Kathy A','Houser, Stephanie A','Ninan, Aleyamma','Park, Vivian Y','Riddle, Crystal M','Rosben Varghese, Bincy','Stapleton-Greig, Joshua D'];
     const CORRECTED_STAFF_NAMES = [
         'Wells, Sydney N','Chen, Maggie M','Jimenez, Krystal','Quinones, Quiryat J','Heath, Logan',
         'Makinde, Andrew','Pfaff, Lillian G','Siebert, Reagan','Aldape, Abigail C','Alfred, Ajuma',
@@ -900,8 +902,8 @@
     let protectedStaff = [];
     const CN_MAX = 4;
     let scheduleStatus = 'open';
-    let requirements = { RN_WD: 15, RN_WE: 14, PCT_WD: 2, PCT_WE: 1, CN: 2, EB: 2, ES: 2,
-                          CAP_WD: 3, CAP_THU: 4, CAP_SAT: 1, CAP_SUN: 2,
+    let requirements = { RN_WD: 15, RN_WE: 15, PCT_WD: 2, PCT_WE: 1, CN: 2, EB: 2, ES: 2,
+                          CAP_WD: 1, CAP_THU: 1, CAP_SAT: 1, CAP_SUN: 1,
                           MID_WD: 2, MID_WE: 1 }; // MID min: weekday=2, weekend=1
 
     // CRITICAL: Dates in MyTime format are 'M/D/ YYYY' (single-digit months/days, space before year)
@@ -1959,7 +1961,99 @@
             }
         });
 
+        moves += levelRNBand(simulation, dates, 'day', COUNTING_DAY, moveList);
         return { simulation, dates, moves, moveList };
+    }
+
+
+    // =====================================================================
+    // v31: RN LEVELING PASS — keep every day inside the 15–16 band
+    // Moves an RN's shift from a crowded day to a thin day IN THE SAME WEEK
+    // (same person, same weekly hours). Order of preference:
+    //   1) shifts the balancer itself added (free — no preference overridden)
+    //   2) late submitters, then non-compliant, then compliant (move caps apply)
+    // Never moves PRNs, ANMs, protected staff, or MID shifts. Never breaks a
+    // nurse's weekend/Sunday minimum or a day's CN/EB/ES minimum.
+    // =====================================================================
+    function levelRNBand(simulation, dates, mode, countingCodes, moveList) {
+        const code = mode === 'day' ? '7A' : '7P';
+        const isWE = d => isWeekendForMode(d, mode);
+        const isSun = d => parseDate(d).getDay() === 0;
+        const weReq = st => st.type === 'FT' ? (mode === 'day' ? 5 : 7) : (st.type === 'PT' ? 4 : 0);
+        const sunReq = st => (mode === 'day' && (st.type === 'FT' || st.type === 'PT')) ? 2 : 0;
+        const weekOf = d => Math.floor(dates.indexOf(d) / 7);
+        const origCache = {};
+        const orig = (st, d) => {
+            if (!origCache[st.name]) origCache[st.name] = translateShifts(st.shifts || {}, mode);
+            return origCache[st.name][d] || '';
+        };
+        const countWhere = (name, pred) => dates.filter(d => pred(d) && countingCodes.includes(simulation[name][d])).length;
+        let leveled = 0, guard = 0, progress = true;
+
+        while (progress && guard++ < 600) {
+            progress = false;
+            const counts = {};
+            dates.forEach(d => { counts[d] = getGaps(d, simulation, countingCodes)._rnCurrent; });
+            // Most-overstaffed days first
+            const sources = dates
+                .filter(d => counts[d] > getRnMin(d, mode))
+                .sort((a, b) => (counts[b] - getRnMax(b, mode)) - (counts[a] - getRnMax(a, mode)));
+
+            outer:
+            for (const src of sources) {
+                const srcOver = counts[src] > getRnMax(src, mode);
+                const targets = dates
+                    .filter(t => t !== src && weekOf(t) === weekOf(src)
+                        && counts[t] <= counts[src] - 2   // every move shrinks the spread
+                        && (srcOver || counts[t] < getRnMin(t, mode)))
+                    .sort((a, b) => (counts[a] - getRnMin(a, mode)) - (counts[b] - getRnMin(b, mode)));
+                if (!targets.length) continue;
+
+                const before = getGaps(src, simulation, countingCodes);
+                const movers = staffRoster
+                    .filter(st => st.job === 'RN' && simulation[st.name] && simulation[st.name][src] === code
+                        && st.type !== 'PRN' && st.shift !== 'MIDSHIFT'
+                        && !ANM_STAFF.includes(st.name) && !EXCLUDED_STAFF.includes(st.name)
+                        && !protectedStaff.includes(st.name))
+                    .map(st => ({ st, pr: getPriorityCategory(st, simulation, null), selfSched: orig(st, src) === code }))
+                    .sort((a, b) => (a.selfSched - b.selfSched) || (a.pr.tier - b.pr.tier));
+
+                for (const m of movers) {
+                    const name = m.st.name;
+                    if (m.selfSched && !canAddMove(name, m.pr.category)) continue;
+                    // Removing this nurse must not open a new CN/EB/ES gap on the crowded day
+                    simulation[name][src] = '';
+                    const after = getGaps(src, simulation, countingCodes);
+                    const skillOK = after.CN <= before.CN && after.EB <= before.EB && after.ES <= before.ES;
+                    if (!skillOK) { simulation[name][src] = code; continue; }
+
+                    for (const t of targets) {
+                        const tv = simulation[name][t];
+                        if (tv && String(tv).trim() !== '') continue;   // only into open days (never over R/O, PTO, etc.)
+                        if (isWE(src) && !isWE(t) && countWhere(name, isWE) < weReq(m.st)) continue;
+                        if (mode === 'day' && isSun(src) && !isSun(t) && countWhere(name, isSun) < sunReq(m.st)) continue;
+                        if (!canAdd(m.st, t, simulation, countingCodes, mode)) continue;
+
+                        simulation[name][t] = code;
+                        if (m.selfSched) {
+                            trackMove(name, m.pr.category, t, code, code); // counts as a Moved shift
+                            moveList.push({ name, date: t, shift: code, from: src,
+                                reason: `Level RN count: moved from ${src} (${counts[src]} RNs) to ${t} (${counts[t]} RNs)`,
+                                type: m.st.type, job: m.st.job, skill: m.st.skill });
+                        } else {
+                            // Relocate a shift the balancer added earlier — still an Added shift, not a Move
+                            const entry = moveList.find(e => e.name === name && e.date === src);
+                            if (entry) { entry.date = t; entry.reason += ` (relocated from ${src} to level RN count)`; }
+                        }
+                        leveled++; progress = true;
+                        break outer;
+                    }
+                    simulation[name][src] = code; // no valid target — put it back
+                }
+            }
+        }
+        console.log(`[v31] ${mode} leveling pass: ${leveled} shift(s) relocated`);
+        return leveled;
     }
 
     function balanceNightShift() {
@@ -2074,6 +2168,7 @@
             }
         });
 
+        moves += levelRNBand(simulation, dates, 'night', COUNTING_NIGHT, moveList);
         return { simulation, dates, moves, moveList };
     }
 
@@ -2229,28 +2324,8 @@
         if (staff.type==='FT' && totalShifts>=21) return false;
         if (staff.type==='PT' && totalShifts>=15) return false;
 
-        // ── WEEKEND CAP: prevent over-assigning weekends to one nurse ──────────
-        // Day: FT=5 weekends, PT=4 | Night: FT=7 weekend shifts, PT=5
-        const dow = parseDate(date).getDay();
-        const dateIsWE = balancingMode === 'day'
-            ? (dow === 0 || dow === 6)
-            : (dow === 5 || dow === 6 || dow === 0);
-        if (dateIsWE) {
-            const weCap = staff.type === 'FT' ? (balancingMode === 'day' ? 5 : 7)
-                        : staff.type === 'PT' ? (balancingMode === 'day' ? 4 : 5)
-                        : 99; // PRN no cap
-            let weCount = 0;
-            for (let i = 0; i < allDates.length; i++) {
-                const d = allDates[i];
-                const dDow = parseDate(d).getDay();
-                const dIsWE = balancingMode === 'day'
-                    ? (dDow === 0 || dDow === 6)
-                    : (dDow === 5 || dDow === 6 || dDow === 0);
-                if (dIsWE && (countingCodes.includes(simulation[staff.name][d]) || simulation[staff.name][d] === 'MID'))
-                    weCount++;
-            }
-            if (weCount >= weCap) return false;
-        }
+        // v31: Weekend MAX caps removed. Minimums (FT Day 5 + 2 Sun, FT Night 7, PT 4) still
+        // enforced by compliance; staff may work extra weekends, especially self-scheduled ones.
 
         return true;
     }
@@ -3200,7 +3275,7 @@
 
         const data = [
             ['✅ AUTO-BALANCED SCHEDULE'],
-            [`${gapCount} RN gap day(s) | ${overCount} over-cap day(s) | v30 | Night pool: see Night Coverage sheet`],
+            [`${gapCount} RN gap day(s) | ${overCount} over-cap day(s) | v31 | Night pool: see Night Coverage sheet`],
             [],
             // Header rows — dates then day names (matching Rowena's layout)
             ['','Min', '', ...dates],
@@ -3281,7 +3356,7 @@
         const rns   = staffRoster.filter(s=>s.job?.includes('RN')&&s.shift!=='MIDSHIFT'&&!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name));
         const pcts  = staffRoster.filter(s=>s.job?.includes('PCT'));
 
-        const data = [[`AUTO-BALANCED ${shiftLabel} SCHEDULE - v30`],['Name','Job','Type','Skills',...dates]];
+        const data = [[`AUTO-BALANCED ${shiftLabel} SCHEDULE - v31`],['Name','Job','Type','Skills',...dates]];
         if (anms.length>0)  { data.push(['=== ANMs ===']); anms.forEach(staff => { const sd=simulation[staff.name]; data.push([staff.name,staff.job,staff.type,staff.skill,...dates.map(d=>sd[d]||'')]); }); data.push([]); }
         if (mids.length>0)  { data.push(['=== MID SHIFT RNs ===']); mids.forEach(staff => { const sd=simulation[staff.name]; data.push([staff.name,staff.job,staff.type,staff.skill,...dates.map(d=>sd[d]||'')]); }); data.push([]); }
         if (rns.length>0)   { data.push(['=== RNs ===']); rns.forEach(staff => { const sd=simulation[staff.name]; data.push([staff.name,staff.job,staff.type,staff.skill,...dates.map(d=>sd[d]||'')]); }); data.push([]); }
@@ -3531,8 +3606,8 @@
 
     function downloadCSV() {
         if (!balancedResults) { alert('Run balancing first.'); return; }
-        if (balancedResults.day) downloadFile(generateCSV(balancedResults.day), 'cvicu_day_balanced_v28.csv', 'text/csv');
-        if (balancedResults.night) downloadFile(generateCSV(balancedResults.night), 'cvicu_night_balanced_v28.csv', 'text/csv');
+        if (balancedResults.day) downloadFile(generateCSV(balancedResults.day), 'cvicu_day_balanced_v31.csv', 'text/csv');
+        if (balancedResults.night) downloadFile(generateCSV(balancedResults.night), 'cvicu_night_balanced_v31.csv', 'text/csv');
     }
 
     function generateCSV(result) {
@@ -3554,7 +3629,7 @@
         if (balancedResults.night) allMoves = allMoves.concat(balancedResults.night.moveList.map(m=>({...m,shiftType:'Night'})));
         let csv = 'Name,Date,Shift Type,Shift Code,Staff Type,Job,Skills,Reason\n';
         allMoves.forEach(move => { csv += `${move.name},${move.date},${move.shiftType},${move.shift},${move.type},${move.job},"${move.skill||''}",${move.reason}\n`; });
-        downloadFile(csv, 'cvicu_move_report_v28.csv', 'text/csv');
+        downloadFile(csv, 'cvicu_move_report_v31.csv', 'text/csv');
     }
 
     function downloadFile(content, filename, type) {
