@@ -2071,7 +2071,8 @@
             dates.forEach(src => dates.forEach(t => {
                 if (src === t || weekOf(src) !== weekOf(t)) return;
                 const over = cnt[src] > opts.max(src), short = cnt[t] < opts.min(t);
-                if ((over && cnt[t] < opts.max(t)) || (short && cnt[src] - 1 >= opts.min(src) && cnt[src] - cnt[t] >= 2))
+                const evenOut = cnt[src] - cnt[t] >= 2 && cnt[src] - 1 >= opts.min(src) && cnt[t] + 1 <= opts.max(t); // v32.5: 3 next to 1 isn't balanced
+                if ((over && cnt[t] < opts.max(t)) || (short && cnt[src] - 1 >= opts.min(src) && cnt[src] - cnt[t] >= 2) || evenOut)
                     pairs.push({ src, t, score: (over ? 10 : 0) + (short ? 10 : 0) + (cnt[src] - cnt[t]) });
             }));
             pairs.sort((a, b) => b.score - a.score);
