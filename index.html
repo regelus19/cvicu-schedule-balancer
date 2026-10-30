@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CVICU Schedule Balancer v32.2</title>
+    <title>CVICU Schedule Balancer v32.3</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
@@ -71,10 +71,10 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v32.2</span></h1>
+        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v32.3</span></h1>
         <p class="subtitle">Upload MyTime export → Auto-balance → Download Excel/CSV</p>
         <div style="margin-top:10px;padding:8px 14px;background:#e6fffa;border-radius:6px;font-size:13px;color:#234e52;display:inline-block;">
-            ✅ v32.2 Current: Chairez 11/15 entry fixed | 8:00 AM for staff = class | Rowena's Oct 30 roster corrections built in | Bedside RNs balanced to a 1-RN band — one extra RN when a staff RN is charge | Charge nurses min 2, actively balanced | Night ANM charge (18T7Q x) | PCT min 1 / max 2, US counted separately | MID weekdays 2–3, weekends 1 | Weekend shifts go to fewest-weekend staff | New color code | Your roster edits always win
+            ✅ v32.3 Current: Rotating mid RNs detected each cycle | Chairez 11/15 entry fixed | 8:00 AM for staff = class | Rowena's Oct 30 roster corrections built in | Bedside RNs balanced to a 1-RN band — one extra RN when a staff RN is charge | Charge nurses min 2, actively balanced | Night ANM charge (18T7Q x) | PCT min 1 / max 2, US counted separately | MID weekdays 2–3, weekends 1 | Weekend shifts go to fewest-weekend staff | New color code | Your roster edits always win
         </div>
     </div>
 
@@ -238,7 +238,7 @@
                 </div>
                 <div>
                     <div style="color:#fbd38d;font-weight:600;">Mid Shift Requirements</div>
-                    <div>Weekday 2–3, weekend exactly 1. Permanent: Hickman (PT, 10a–10p) &amp; Kesbeh (FT, 12p–12a). Rotators: Warneke S &amp; Hayes (PM, 1p–1a), Siebert &amp; Heath (AM, 11a–11p) — mid for half the 6 weeks, home shift the other half.</div>
+                    <div>Weekday 2–3, weekend exactly 1. Permanent: Hickman (PT, 10a–10p) &amp; Kesbeh (FT, 12p–12a). Plus 4 rotating mid RNs each 6-week cycle — whoever signs up with a mid code that schedule.</div>
                 </div>
                 <div>
                     <div style="color:#fbd38d;font-weight:600;">Weekend Maximums (removed)</div>
@@ -307,7 +307,7 @@
                     <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">6T19Q, 6T19Q x, 6T19, 7A</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">7A</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Day Shift (7am–7pm)</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">RN, PCT — <strong>6T19Q x = ANM working as charge nurse (exception)</strong></td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
                     <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">6W18H, 6W18</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">7A</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">US Day Shift</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">US (Unit Secretary) — day shift code</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
                     <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">10W2Q, 10W2, 10W22, MID</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">MID</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Mid Shift (10am–10pm) — counts as day coverage</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Permanent: Hickman (10am–10pm, PT), Kesbeh (12pm–12am, FT)</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅ Day</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
-                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">11:00 AM, 1:00 PM</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">MID</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Rotating mid shift — 11am–11pm (AM rotators) or 1pm–1am (PM rotators). Counts as day coverage</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Rotators: Siebert &amp; Heath (11am), Warneke S &amp; Hayes (1pm)</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅ Day</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
+                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">11:00 AM, 1:00 PM</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">MID</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Rotating mid shift — 11am–11pm or 1pm–1am. Counts as day coverage. Rotating RNs change every 6 weeks (whoever signs up with this code)</td><td style="padding:7px 8px;border:1px solid #9ae6b4;"></td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅ Day</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
                     <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">18T7Q, 18T7, 7P</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">7P</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Night Shift (7pm–7am)</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">RN, PCT</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
                     <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">18W6H, 18W6</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">7P</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">US Night Shift</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">US (Unit Secretary) — night shift code</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
                 </tbody>
@@ -394,7 +394,7 @@
                 <tr style="background:#fff;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What does ANY "C" code mean?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#22543d;font-weight:600;">PTO — approved leave. Counts toward requirements but NOT coverage.</td></tr>
                 <tr style="background:#fff5f5;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What does ANY "R" code mean?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#742a2a;font-weight:600;">R/O — requested off. Does NOT count toward anything.</td></tr>
                 <tr style="background:#f0fff4;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Do MID shifts count toward day coverage?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;">YES — always counts toward day coverage, even for rotating PM nurses</td></tr>
-                <tr style="background:#fff;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Who are permanent midshifters?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;">Hickman, Erika (PT, 10am–10pm) and Kesbeh, Shroq O (FT, 12pm–12am). Rotators: Warneke S, Hayes, Siebert, Heath.</td></tr>
+                <tr style="background:#fff;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Who are permanent midshifters?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;">Hickman, Erika (PT, 10am–10pm) and Kesbeh, Shroq O (FT, 12pm–12am). Plus 4 rotating mid RNs each cycle — whoever signs up with a mid code.</td></tr>
                 <tr style="background:#f0fff4;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What is "Open x"?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#742a2a;font-weight:600;">Education hours (EDU) — does NOT count toward coverage or requirements.</td></tr>
                 <tr style="background:#fff;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Does PTO count toward shift requirement?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#22543d;font-weight:600;">YES — PTO/FMLA/LOA/C codes count toward 18 (FT) / 12 (PT) minimum</td></tr>
                 <tr style="background:#fff5f5;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Does SICK count?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#742a2a;font-weight:600;">NO — sick time does not fulfill shift minimum</td></tr>
@@ -913,7 +913,14 @@
         return false;
     }
     const MID_MAX_WD = 3, MID_MAX_WE = 1;
-    const MID_ROTATORS = ['Warneke, Shanen','Hayes, Tyler','Siebert, Reagan','Heath, Logan']; // v32: rotate between home shift and MID
+    // v32.3: rotating mid RNs change every 6-week cycle — whoever signs up with a mid code
+    // (11:00 AM, 1:00 PM, 10W22, 12W00) is a rotator for THAT schedule. Rebuilt on every import.
+    let MID_ROTATORS = [];
+    function refreshMidRotators() {
+        MID_ROTATORS = staffRoster.filter(st => st.job === 'RN' && st.shift !== 'MIDSHIFT' && !ANM_STAFF.includes(st.name)
+            && !EXCLUDED_STAFF.includes(st.name) && Object.values(st.shifts || {}).filter(v => v === 'MID').length >= 3).map(st => st.name); // a one-off mid pickup isn't a rotator
+        console.log('[v32.3] Rotating mid RNs this cycle:', MID_ROTATORS.join('; ') || 'none');
+    }
     function getMidMin(dateStr) { return isWeekendDate(dateStr) ? requirements.MID_WE : requirements.MID_WD; }
     function getMidMax(dateStr) { return isWeekendDate(dateStr) ? MID_MAX_WE : MID_MAX_WD; }
 
@@ -1279,6 +1286,7 @@
         const appliedCount = applyMasterDataToStaff();
         applyAuthoritativeRosterCorrections();
         const editCount = applyUserOverrides(); // v31.2: user's own edits win over everything
+        refreshMidRotators(); // v32.3
         if (editCount > 0) console.log(`✏️ Applied ${editCount} saved roster edit(s)`);
         if (appliedCount > 0) console.log(`✅ Auto-loaded master database for ${appliedCount} staff`);
 
@@ -2110,7 +2118,7 @@
         const row = simulation[name] || {};
         return Object.keys(row).filter(d => /\d+\/\s*\d+\/\s*\d{4}/.test(d) && isWeekendForMode(d, mode) && codes.includes(row[d])).length;
     }
-    // A rotator (Warneke S, Hayes, Siebert, Heath) is "on mid" for the half of the 6 weeks
+    // A rotating mid RN (detected each cycle) is "on mid" for the half of the 6 weeks
     // in which they self-scheduled mid shifts.
     function isMidRotatorOn(staff, date, dates) {
         if (!MID_ROTATORS.some(n => normalizeStaffName(n) === normalizeStaffName(staff.name))) return false;
