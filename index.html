@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CVICU Schedule Balancer v32.3</title>
+    <title>CVICU Schedule Balancer v32.4</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
@@ -71,10 +71,10 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v32.3</span></h1>
+        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v32.4</span></h1>
         <p class="subtitle">Upload MyTime export → Auto-balance → Download Excel/CSV</p>
         <div style="margin-top:10px;padding:8px 14px;background:#e6fffa;border-radius:6px;font-size:13px;color:#234e52;display:inline-block;">
-            ✅ v32.3 Current: Rotating mid RNs detected each cycle | Chairez 11/15 entry fixed | 8:00 AM for staff = class | Rowena's Oct 30 roster corrections built in | Bedside RNs balanced to a 1-RN band — one extra RN when a staff RN is charge | Charge nurses min 2, actively balanced | Night ANM charge (18T7Q x) | PCT min 1 / max 2, US counted separately | MID weekdays 2–3, weekends 1 | Weekend shifts go to fewest-weekend staff | New color code | Your roster edits always win
+            ✅ v32.4 Current: Wrong-template codes count as the person's own shift | Date row above totals | Mid staff weekend rule fixed | Rotating mid RNs detected each cycle | Chairez 11/15 entry fixed | 8:00 AM for staff = class | Rowena's Oct 30 roster corrections built in | Bedside RNs balanced to a 1-RN band — one extra RN when a staff RN is charge | Charge nurses min 2, actively balanced | Night ANM charge (18T7Q x) | PCT min 1 / max 2, US counted separately | MID weekdays 2–3, weekends 1 | Weekend shifts go to fewest-weekend staff | New color code | Your roster edits always win
         </div>
     </div>
 
@@ -916,6 +916,7 @@
     // v32.3: rotating mid RNs change every 6-week cycle — whoever signs up with a mid code
     // (11:00 AM, 1:00 PM, 10W22, 12W00) is a rotator for THAT schedule. Rebuilt on every import.
     let MID_ROTATORS = [];
+    let TEMPLATE_FIXES = []; // v32.4: wrong-template entries corrected on import
     function refreshMidRotators() {
         MID_ROTATORS = staffRoster.filter(st => st.job === 'RN' && st.shift !== 'MIDSHIFT' && !ANM_STAFF.includes(st.name)
             && !EXCLUDED_STAFF.includes(st.name) && Object.values(st.shifts || {}).filter(v => v === 'MID').length >= 3).map(st => st.name); // a one-off mid pickup isn't a rotator
@@ -1194,6 +1195,7 @@
         const dates = validation.dateBlocks.map(block => ({ col: block.startCol, date: block.date, endCol: block.endCol }));
 
         staffRoster = [];
+        TEMPLATE_FIXES = [];
         for (let i = validation.dateRowIndex + 1; i < data.length; i++) {
             const row = data[i];
             const name = row[0];
@@ -1267,6 +1269,20 @@
             if ((String(job).toUpperCase().includes('AMGR') || staffRole === 'AMGR') && !ANM_STAFF.includes(name)) ANM_STAFF.push(name);
             // v31.1: shift fallback from detectShiftType returns 'day'/'night' — normalize to AM/PM
             const normShift = staffShift === 'day' ? 'AM' : staffShift === 'night' ? 'PM' : staffShift;
+            // v32.4 WRONG-TEMPLATE RULE (Rowena): a code from the other shift's template counts as the
+            // person's OWN shift — night RN with 6t19q = night, day RN with 18t7q = day, permanent mid = MID.
+            // Mid codes (11:00 AM, 1:00 PM, 10W22, 12W00) are left alone so rotators still work.
+            if (!isANM) {
+                const home = normShift === 'PM' ? '7P' : normShift === 'AM' ? '7A' : normShift === 'MIDSHIFT' ? 'MID' : '';
+                Object.keys(shifts).forEach(d => {
+                    const v = shifts[d];
+                    if (home && (v === '7A' || v === '7P') && v !== home) {
+                        shifts[d] = home;
+                        rawShifts[d] = (rawShifts[d] || v) + ` → counted as ${home} (wrong template)`;
+                        TEMPLATE_FIXES.push({ name, date: d, from: v, to: home });
+                    }
+                });
+            }
             staffRoster.push({
                 name, job: staffRole === 'AMGR' ? 'RN' : (staffRole === 'HUC' ? 'US' : staffRole), // v32: HUC is now US everywhere
                 type: staffType, skill: staffSkill, shift: normShift, shifts, rawShifts
@@ -2041,7 +2057,8 @@
     function levelGroup(simulation, dates, mode, countingCodes, moveList, opts) {
         const isWE = d => isWeekendForMode(d, mode);
         const isSun = d => parseDate(d).getDay() === 0;
-        const weReq = st => st.type === 'FT' ? (mode === 'day' ? 5 : 7) : (st.type === 'PT' ? 4 : 0);
+        // v32.4: permanent mid staff have NO weekend minimum (guideline: 3 weekends or fewer) and no Sunday rule
+        const weReq = st => st.shift === 'MIDSHIFT' ? 0 : st.type === 'FT' ? (mode === 'day' ? 5 : 7) : (st.type === 'PT' ? 4 : 0);
         const weekOf = d => Math.floor(dates.indexOf(d) / 7);
         const origCache = {};
         const orig = (st, d) => { if (!origCache[st.name]) origCache[st.name] = translateShifts(st.shifts || {}, mode); return origCache[st.name][d] || ''; };
@@ -2074,7 +2091,7 @@
                     const after = getGaps(src, simulation, countingCodes);
                     const ok = after.CN <= before.CN && after.EB <= before.EB && after.ES <= before.ES
                         && !(isWE(src) && !isWE(t) && worked(name, isWE) < weReq(m.st))
-                        && !(mode === 'day' && isSun(src) && !isSun(t) && (m.st.type === 'FT' || m.st.type === 'PT') && worked(name, isSun) < 2)
+                        && !(mode === 'day' && isSun(src) && !isSun(t) && m.st.shift !== 'MIDSHIFT' && (m.st.type === 'FT' || m.st.type === 'PT') && worked(name, isSun) < 2)
                         && canAdd(opts.asStaff ? opts.asStaff(m.st) : m.st, t, simulation, countingCodes, mode);
                     if (!ok) { simulation[name][src] = code; continue; }
                     simulation[name][t] = code;
@@ -3372,6 +3389,8 @@
             const md = isDay ? 'day' : 'night';
             const plainRow = (label, key) => `<tr><td colspan="4" style="background:#edf2f7;font-weight:700;padding:4px 8px;border:1px solid #aaa;">${label}</td>${daily.map(item => `<td style="text-align:center;padding:4px;border:1px solid #aaa;background:#f7fafc;">${item[key]}</td>`).join('')}<td colspan="4" style="background:#edf2f7;border:1px solid #aaa;"></td></tr>`;
             // v32: staff RNs = the rows above; bedside = staff RNs minus a staff charge nurse (when no ANM is charge)
+            // v32.4: repeat the date row above the totals for easy scrolling
+            html += `<tr style="background:${hdrBg};color:white;font-weight:bold;"><td colspan="4" style="padding:4px 8px;border:1px solid #aaa;">DATE</td>${dates.map(d=>`<td style="padding:2px 3px;border:1px solid #aaa;text-align:center;font-size:10px;${isHoliday(d)?'background:#D9D2E9;color:#2d3748;':''}">${fmtDow(d)}<br>${fmtD(d)}</td>`).join('')}<td colspan="4" style="border:1px solid #aaa;"></td></tr>`;
             html += plainRow('STAFF RNs (count the rows above)', 'staffRN');
             html += plainRow('CHARGE NURSE (ANM or staff RN)', 'charge');
             html += (() => {
@@ -3733,7 +3752,7 @@
             });
             data.push([]);
             const tallyHeaderRow = data.length;
-            data.push(['DAILY COVERAGE TALLY','Minimum','','',...dates]);
+            data.push(['DAILY COVERAGE TALLY','Minimum','','',...dates.map(d => { const dt = parseDate(d); return `${dt.toLocaleDateString('en-US',{weekday:'short'})} ${dt.getMonth()+1}/${dt.getDate()}`; })]); // v32.4: readable dates above totals
             const daily = dates.map(date => ({ date, ...getDailyClinicalTotals(date, result.simulation, mode) }));
             const tallyRows = [
                 ['Staff RNs (rows above)', () => '', 'staffRN', null],
