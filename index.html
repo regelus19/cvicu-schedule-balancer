@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CVICU Schedule Balancer v31.1</title>
+    <title>CVICU Schedule Balancer v31.2</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
@@ -71,10 +71,10 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v31.1</span></h1>
+        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v31.2</span></h1>
         <p class="subtitle">Upload MyTime export → Auto-balance → Download Excel/CSV</p>
         <div style="margin-top:10px;padding:8px 14px;background:#e6fffa;border-radius:6px;font-size:13px;color:#234e52;display:inline-block;">
-            ✅ v31.1 Current: RN totals always match the rows shown | Any MyTime AMGR treated as ANM | RN counts leveled to a 15–16 band (day &amp; night) | Weekend MAX caps removed — minimums still apply | ECMO nurses removed from roster | HUC/US included (6W18H=7A, 18W6H=7P) | MID weekday min 2 / weekend min 1 | C codes=PTO | R codes=R/O | Open x=EDU | 10W22+12W00=MID | Score card | Colored schedule download | Master staff database hardwired (114 staff)
+            ✅ v31.2 Current: Your roster edits always win (saved in this browser) | RN totals always match the rows shown | Any MyTime AMGR treated as ANM | RN counts leveled to a 15–16 band (day &amp; night) | Weekend MAX caps removed — minimums still apply | ECMO nurses removed from roster | HUC/US included (6W18H=7A, 18W6H=7P) | MID weekday min 2 / weekend min 1 | C codes=PTO | R codes=R/O | Open x=EDU | 10W22+12W00=MID | Score card | Colored schedule download | Master staff database hardwired (114 staff)
         </div>
     </div>
 
@@ -1264,6 +1264,8 @@
 
         const appliedCount = applyMasterDataToStaff();
         applyAuthoritativeRosterCorrections();
+        const editCount = applyUserOverrides(); // v31.2: user's own edits win over everything
+        if (editCount > 0) console.log(`✏️ Applied ${editCount} saved roster edit(s)`);
         if (appliedCount > 0) console.log(`✅ Auto-loaded master database for ${appliedCount} staff`);
 
         document.getElementById('payPeriod').textContent = dates[0]?.date + ' to ' + dates[dates.length-1]?.date;
@@ -1304,7 +1306,39 @@
         });
     }
 
-    function updateStaff(idx, field, value) { staffRoster[idx][field] = value; saveRoster(); renderStaffBreakdown(); renderFairnessCandidates(); }
+    // =====================================================================
+    // v31.2 ROSTER EDITS ALWAYS WIN
+    // Anything the user deliberately sets (table edit, master file upload, Add Employee)
+    // is stored here and applied LAST on every import — after the master database and
+    // the built-in corrections — so it can never be silently overwritten.
+    // =====================================================================
+    const OVERRIDE_KEY = 'cvicu_user_roster_edits';
+    function loadOverrides() { try { return JSON.parse(localStorage.getItem(OVERRIDE_KEY) || '{}'); } catch(e) { return {}; } }
+    function setOverride(name, fields) {
+        try {
+            const o = loadOverrides(); const k = normalizeStaffName(name);
+            o[k] = { ...(o[k] || {}), ...Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined && v !== null)), name };
+            localStorage.setItem(OVERRIDE_KEY, JSON.stringify(o));
+        } catch(e) {}
+        updateMasterDatabaseStatus();
+    }
+    function applyUserOverrides() {
+        const o = loadOverrides(); let n = 0;
+        staffRoster.forEach(staff => {
+            const e = o[normalizeStaffName(staff.name)]; if (!e) return;
+            ['job','type','shift','skill'].forEach(f => { if (e[f] !== undefined) staff[f] = (f === 'job' && e[f] === 'AMGR') ? 'RN' : e[f]; });
+            n++;
+        });
+        return n;
+    }
+    function clearRosterEdits() {
+        if (!confirm('Undo ALL roster edits saved in this browser? The tool will go back to the built-in roster.')) return;
+        try { localStorage.removeItem(OVERRIDE_KEY); } catch(e) {}
+        updateMasterDatabaseStatus();
+        alert('✅ Roster edits cleared. Re-upload your MyTime file to see the built-in roster.');
+    }
+
+    function updateStaff(idx, field, value) { staffRoster[idx][field] = value; setOverride(staffRoster[idx].name, { [field]: value }); saveRoster(); renderStaffBreakdown(); renderFairnessCandidates(); }
     function saveRoster() {
         const rosterData = staffRoster.map(s => ({ name: s.name, type: s.type, skill: s.skill, shift: s.shift }));
         localStorage.setItem('cvicu_roster', JSON.stringify(rosterData));
@@ -1446,6 +1480,8 @@
         const statusDiv = document.getElementById('masterDatabaseStatus');
         if (count > 0) { statusDiv.innerHTML = `✅ <strong>${count} staff</strong> in master database`; statusDiv.style.color = '#38a169'; }
         else { statusDiv.innerHTML = '⚠️ No master database loaded.'; statusDiv.style.color = '#d69e2e'; }
+        const edits = Object.keys(loadOverrides()).length;
+        if (edits > 0) statusDiv.innerHTML += ` &nbsp;|&nbsp; ✏️ <strong>${edits}</strong> roster edit(s) saved in this browser — always applied <a href="#" onclick="clearRosterEdits();return false;" style="font-size:12px;color:#c53030;margin-left:6px;">undo all</a>`;
     }
     function saveCurrentAsMaster() {
         if (!staffRoster || staffRoster.length === 0) { alert('⚠️ No staff loaded.'); return; }
@@ -1474,7 +1510,11 @@
                 const database = {};
                 rosterRows.forEach(row => {
                     const name = row.Name || row.Employee || '';
-                    if (name) database[name] = { job:row.Job||'', type:row.Type||'FT', shift:row.Shift||'', skills:row.Skills||'' };
+                    if (name) {
+                        database[name] = { job:row.Job||'', type:row.Type||'FT', shift:row.Shift||'', skills:row.Skills||'' };
+                        const f = {}; if (row.Job) f.job = row.Job; if (row.Type) f.type = row.Type; if (row.Shift) f.shift = row.Shift; if (row.Skills !== undefined) f.skill = row.Skills;
+                        setOverride(name, f); // v31.2: an uploaded master file is a deliberate edit
+                    }
                 });
                 saveMasterDatabase(database);
                 if (historyRows.length) {
@@ -1485,7 +1525,7 @@
                     localStorage.setItem('cvicu_request_history', JSON.stringify(normalizedHistory));
                 }
                 alert(`✅ Loaded ${Object.keys(database).length} staff${historyRows.length?` and ${historyRows.length} request-history records`:''} from master file`);
-                if (staffRoster.length > 0) { applyMasterDataToStaff(); applyAuthoritativeRosterCorrections(); renderStaffTable(); renderStaffBreakdown(); renderFairnessCandidates(); }
+                if (staffRoster.length > 0) { applyMasterDataToStaff(); applyAuthoritativeRosterCorrections(); applyUserOverrides(); renderStaffTable(); renderStaffBreakdown(); renderFairnessCandidates(); }
             } catch (error) { alert('Error reading CSV: ' + error.message); }
         };
         if (file.name.toLowerCase().endsWith('.xlsx')) reader.readAsArrayBuffer(file);
@@ -1536,6 +1576,7 @@
         const database = loadMasterDatabase();
         database[name] = { job, type, shift, skills };
         saveMasterDatabase(database);
+        setOverride(name, { job, type, shift, skill: skills });
         if (staffRoster.length > 0) {
             const exists = staffRoster.find(s => s.name === name);
             if (!exists) { staffRoster.push({ name, job, type, shift, skill: skills, shifts: {} }); renderStaffTable(); document.getElementById('staffCount').textContent = staffRoster.length; }
