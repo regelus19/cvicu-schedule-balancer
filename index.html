@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CVICU Schedule Balancer v32.6</title>
+    <title>CVICU Schedule Balancer v32.7</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
@@ -71,10 +71,10 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v32.6</span></h1>
+        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v32.7</span></h1>
         <p class="subtitle">Upload MyTime export → Auto-balance → Download Excel/CSV</p>
         <div style="margin-top:10px;padding:8px 14px;background:#e6fffa;border-radius:6px;font-size:13px;color:#234e52;display:inline-block;">
-            ✅ v32.6 Current: MID HARD RULE: weekdays 1–2, weekends exactly 1 | Wrong-template codes count as the person's own shift | Date row above totals | Mid staff weekend rule fixed | Rotating mid RNs detected each cycle | Chairez 11/15 entry fixed | 8:00 AM for staff = class | Rowena's Oct 30 roster corrections built in | Bedside RNs balanced to a 1-RN band — one extra RN when a staff RN is charge | Charge nurses min 2, actively balanced | Night ANM charge (18T7Q x) | PCT min 1 / max 2, US counted separately | MID weekdays 2–3, weekends 1 | Weekend shifts go to fewest-weekend staff | New color code | Your roster edits always win
+            ✅ v32.7 Current: EB/ES balanced across the week | MID HARD RULE: weekdays 1–2, weekends exactly 1 | Wrong-template codes count as the person's own shift | Date row above totals | Mid staff weekend rule fixed | Rotating mid RNs detected each cycle | Chairez 11/15 entry fixed | 8:00 AM for staff = class | Rowena's Oct 30 roster corrections built in | Bedside RNs balanced to a 1-RN band — one extra RN when a staff RN is charge | Charge nurses min 2, actively balanced | Night ANM charge (18T7Q x) | PCT min 1 / max 2, US counted separately | MID weekdays 2–3, weekends 1 | Weekend shifts go to fewest-weekend staff | New color code | Your roster edits always win
         </div>
     </div>
 
@@ -2134,6 +2134,16 @@
             code: () => 'MID',
             eligible: (st, src, t) => st.job === 'RN' && (st.shift === 'MIDSHIFT' || isMidRotatorOn(st, t, dates)),
             asStaff: st => ({ ...st, shift: 'MIDSHIFT' })
+        });
+        // v32.7: ECMO skill balancing — move an EB / ES nurse from a day with extras to a short day in the same week
+        ['EB','ES'].forEach(skill => {
+            n += levelGroup(simulation, dates, mode, countingCodes, moveList, {
+                label: `${skill} coverage`,
+                count: d => covFromSim(d, simulation, mode)[skill.toLowerCase()],
+                min: () => requirements[skill], max: () => 99,
+                code: () => mode === 'day' ? '7A' : '7P',
+                eligible: st => st.job === 'RN' && st.shift !== 'MIDSHIFT' && st.skill?.includes(skill)
+            });
         });
         n += levelGroup(simulation, dates, mode, countingCodes, moveList, {
             label: 'Level PCT count',
