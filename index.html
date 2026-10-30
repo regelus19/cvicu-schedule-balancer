@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CVICU Schedule Balancer v32</title>
+    <title>CVICU Schedule Balancer v32.1</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
@@ -71,10 +71,10 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v32</span></h1>
+        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v32.1</span></h1>
         <p class="subtitle">Upload MyTime export → Auto-balance → Download Excel/CSV</p>
         <div style="margin-top:10px;padding:8px 14px;background:#e6fffa;border-radius:6px;font-size:13px;color:#234e52;display:inline-block;">
-            ✅ v32 Current: Rowena's Oct 30 roster corrections built in | Bedside RNs balanced to a 1-RN band — one extra RN when a staff RN is charge | Charge nurses min 2, actively balanced | Night ANM charge (18T7Q x) | PCT min 1 / max 2, US counted separately | MID weekdays 2–3, weekends 1 | Weekend shifts go to fewest-weekend staff | New color code | Your roster edits always win
+            ✅ v32.1 Current: 8:00 AM for staff = class | Rowena's Oct 30 roster corrections built in | Bedside RNs balanced to a 1-RN band — one extra RN when a staff RN is charge | Charge nurses min 2, actively balanced | Night ANM charge (18T7Q x) | PCT min 1 / max 2, US counted separately | MID weekdays 2–3, weekends 1 | Weekend shifts go to fewest-weekend staff | New color code | Your roster edits always win
         </div>
     </div>
 
@@ -880,7 +880,9 @@
         'Dismuke, Khadeja','Bogard, Brianna','Chairez, Odalys Y','DeLuna, Travis','HAMDAN, SAMMAR','Hall, Amanda','Joy, Faith','Joya Soto, Arturo B','Kesbeh, Shroq O','Makinde, Andrew','Martinez, Samantha','Nardo, Anna','Patel, Rachel','Pfaff, Lillian G','Raven, Taiya D','Rawlins, Abbey N','Ross, Daysha','Segura, Genova','Siebert, Reagan','Smith, Joshua B','Thomas, Maya','Tran, Hung','Warneke, Shanen','VanDeKop, Jordan','Hickman, Erika','Hayes, Tyler','Heath, Logan','Crayton, Karonda','Dismuke, Brittany','Joseph, Tevin Jacob','Lias, Imani A','Wu, Nancy','Bruce, Jessica','Cruz, Rowena','Wells, Sydney N','Raymond, Joseph D','Warneke, Madison'
     ];
     const normalizeStaffName = name => String(name || '').trim().replace(/\s+/g, ' ').toUpperCase();
-    const findRosterRecord = name => Object.entries(STAFF_ROSTER_LOOKUP).find(([key]) => normalizeStaffName(key) === normalizeStaffName(name))?.[1];
+    const sameStaff = (a, b) => { const x = normalizeStaffName(a), y = normalizeStaffName(b); return x === y || x.startsWith(y + ' ') || y.startsWith(x + ' '); }; // v32.1
+    const findRosterRecord = name => (Object.entries(STAFF_ROSTER_LOOKUP).find(([key]) => normalizeStaffName(key) === normalizeStaffName(name))
+        || Object.entries(STAFF_ROSTER_LOOKUP).find(([key]) => sameStaff(key, name)))?.[1];
     const EXCLUDED_STAFF = ["Boepple, Leslie C","Crawford, Kathy A","Houser, Stephanie A","Ninan, Aleyamma","Park, Vivian Y","Riddle, Crystal M","Rosben Varghese, Bincy","Stapleton-Greig, Joshua D","Horstmann, Hannah G"];
 
     let rawData = null;
@@ -1081,7 +1083,8 @@
         if (ampm === 'PM' && hour !== 12) hour += 12;
         if (ampm === 'AM' && hour === 12) hour = 0;
         if (hour >= 1 && hour <= 5) return 'ADMIN';
-        if (hour >= 6 && hour <= 9) return '7A';
+        if (hour >= 8 && hour <= 9) return 'EDU'; // v32.1: 8:00 AM for staff RNs = class (Rowena, Oct 30)
+        if (hour >= 6 && hour <= 7) return '7A';
         if (hour >= 10 && hour <= 14) return 'MID';
         if (hour >= 15 && hour <= 23) return '7P';
         return '';
@@ -1188,7 +1191,7 @@
             if (!name || typeof name !== 'string') continue;
             if (!name.includes(',')) continue; // person names always have "Last, First"
             if (name.includes('Employee') || name.includes('866') || name.includes('──')) continue;
-            if (REMOVED_STAFF.some(removed => normalizeStaffName(removed) === normalizeStaffName(name))) continue;
+            if (REMOVED_STAFF.some(removed => sameStaff(removed, name))) continue;
 
             const shifts = {};
             const rawShifts = {};
@@ -1232,7 +1235,7 @@
             const masterData = masterDatabase[name];
             const saved = getSavedStaff(name);
             const embedded = findRosterRecord(name);
-            const correction = CORRECTED_STAFF_NAMES.some(corrected => normalizeStaffName(corrected) === normalizeStaffName(name)) ? embedded : null;
+            const correction = CORRECTED_STAFF_NAMES.some(corrected => sameStaff(corrected, name)) ? embedded : null;
             const excelType = row[2];
             const excelSkill = row[3];
 
@@ -1255,8 +1258,8 @@
         // Keep current roster members visible during an open schedule even when their MyTime row is absent.
         const importedNames = new Set(staffRoster.map(staff => normalizeStaffName(staff.name)));
         Object.entries(STAFF_ROSTER_LOOKUP).forEach(([name, record]) => {
-            if (!CORRECTED_STAFF_NAMES.some(corrected => normalizeStaffName(corrected) === normalizeStaffName(name))) return;
-            if (REMOVED_STAFF.some(removed => normalizeStaffName(removed) === normalizeStaffName(name))) return;
+            if (!CORRECTED_STAFF_NAMES.some(corrected => sameStaff(corrected, name))) return;
+            if (REMOVED_STAFF.some(removed => sameStaff(removed, name))) return;
             const key = normalizeStaffName(name);
             if ([...importedNames].some(n => n === key || n.startsWith(key + ' '))) return; // v31.1: 'Nguyen, Thiara' = 'Nguyen, Thiara T'
             staffRoster.push({ name, job: record.job === 'AMGR' ? 'RN' : record.job, type: record.type, skill: record.skill, shift: record.shift, shifts: {}, rawShifts: {} });
@@ -1608,7 +1611,7 @@
     function applyAuthoritativeRosterCorrections() {
         staffRoster = staffRoster.filter(staff => !REMOVED_STAFF.some(name => normalizeStaffName(name) === normalizeStaffName(staff.name)));
         staffRoster.forEach(staff => {
-            if (!CORRECTED_STAFF_NAMES.some(name => normalizeStaffName(name) === normalizeStaffName(staff.name))) return;
+            if (!CORRECTED_STAFF_NAMES.some(name => sameStaff(name, staff.name))) return;
             const corrected = findRosterRecord(staff.name);
             if (!corrected) return;
             staff.job = corrected.job === 'AMGR' ? 'RN' : corrected.job;
@@ -3298,7 +3301,7 @@
                 const shown = new Set(groups.flatMap(g => g.staff.map(s => s.name)));
                 const worksHere = s => dates.some(d => { const v = simulation[s.name]?.[d]; return counting.includes(v) || (isDay && (v === 'MID' || v === 'ANM_CN')); });
                 const extras = staffRoster.filter(s => !shown.has(s.name) && !EXCLUDED_STAFF.includes(s.name) && worksHere(s));
-                if (extras.length) groups.splice(groups.length - 1, 0, { label: `Also working ${isDay ? 'days' : 'nights'} — roster lists a different shift (please verify)`, staff: extras });
+                if (extras.length) groups.splice(groups.length - 1, 0, { label: `Picked up ${isDay ? 'day' : 'night'} shift(s) — usual shift is different (for your information)`, staff: extras });
             }
 
             groups.forEach(grp => {
