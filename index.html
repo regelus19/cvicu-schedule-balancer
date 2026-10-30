@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CVICU Schedule Balancer v31.2</title>
+    <title>CVICU Schedule Balancer v32</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
@@ -71,10 +71,10 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v31.2</span></h1>
+        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v32</span></h1>
         <p class="subtitle">Upload MyTime export → Auto-balance → Download Excel/CSV</p>
         <div style="margin-top:10px;padding:8px 14px;background:#e6fffa;border-radius:6px;font-size:13px;color:#234e52;display:inline-block;">
-            ✅ v31.2 Current: Your roster edits always win (saved in this browser) | RN totals always match the rows shown | Any MyTime AMGR treated as ANM | RN counts leveled to a 15–16 band (day &amp; night) | Weekend MAX caps removed — minimums still apply | ECMO nurses removed from roster | HUC/US included (6W18H=7A, 18W6H=7P) | MID weekday min 2 / weekend min 1 | C codes=PTO | R codes=R/O | Open x=EDU | 10W22+12W00=MID | Score card | Colored schedule download | Master staff database hardwired (114 staff)
+            ✅ v32 Current: Rowena's Oct 30 roster corrections built in | Bedside RNs balanced to a 1-RN band — one extra RN when a staff RN is charge | Charge nurses min 2, actively balanced | Night ANM charge (18T7Q x) | PCT min 1 / max 2, US counted separately | MID weekdays 2–3, weekends 1 | Weekend shifts go to fewest-weekend staff | New color code | Your roster edits always win
         </div>
     </div>
 
@@ -142,12 +142,11 @@
             <div style="background:#ebf8ff;border:2px solid #90cdf4;border-radius:8px;padding:16px;">
                 <div style="font-weight:700;color:#2c5282;font-size:15px;margin-bottom:10px;">⚙️ Step 2 — Set Coverage Requirements</div>
                 <ul style="font-size:13px;line-height:1.9;padding-left:18px;color:#2d3748;">
-                    <li><strong>RN Weekday Min</strong> — target RN count Mon–Fri (default: 15)</li>
-                    <li><strong>RN Weekend Min</strong> — target RN count Sat–Sun (default: 14)</li>
-                    <li><strong>Cap sliders</strong> — max RNs above minimum per day type:<br>
-                        &nbsp;&nbsp;Sat +1, Sun +2, Mon/Tue/Wed/Fri +3, Thu +4</li>
-                    <li><strong>PCT/HUC Weekday</strong> min 2, <strong>PCT/HUC Weekend</strong> min 1 (PCT and HUC are counted together toward coverage)</li>
-                    <li><strong>Assigned CN</strong> (Charge Nurse) minimum 2, maximum 4 per shift</li>
+                    <li><strong>Bedside RN Min</strong> — weekday and weekend (default 15). Every day is balanced to min or min + 1 (never more than a 1-RN difference). No offsets or dressing-day extras.</li>
+                    <li><strong>Charge nurse</strong> — when no ANM is working as charge, a staff RN is charge (no patients), so the tool schedules one extra RN: the charge nurse <em>plus</em> the minimum bedside RNs.</li>
+                    <li><strong>PCT</strong> minimum 1, maximum 2 per shift. US (Unit Secretaries) are counted separately and never count as PCTs.</li>
+                    <li><strong>Charge-qualified nurses (CN)</strong> minimum 2 per shift, no maximum</li>
+                    <li><strong>MID</strong> — weekdays 2–3, weekends exactly 1</li>
                     <li>EB and ES minimums (skill mix)</li>
                 </ul>
             </div>
@@ -159,7 +158,7 @@
                     <li>Verify their <strong>Shift</strong> (Day AM / Night PM / Mid)</li>
                     <li>Verify their <strong>Skills</strong> (CN, EB, ES)</li>
                     <li>Use <strong>💾 Master Staff Database</strong> to save this info permanently — future uploads will auto-fill it</li>
-                    <li>ANMs (Cruz, Rodriguez, Bruce) are marked 🔒 and will never be moved</li>
+                    <li>ANMs (Cruz, Bruce, Wells, Raymond, Madison Warneke) are marked 🔒 and will never be moved</li>
                 </ul>
                 <div style="margin-top:8px;font-size:12px;background:#fed7d7;padding:6px 8px;border-radius:4px;color:#742a2a;">
                     ⚠️ Always verify shifts for new staff before balancing
@@ -182,11 +181,11 @@
                     <li><strong>☀️ Balance Day Shift</strong> — fills AM + MID shift gaps</li>
                     <li><strong>🌙 Balance Night Shift</strong> — fills PM shift gaps</li>
                     <li><strong>🔄 Balance Both</strong> — runs day then night in one click</li>
-                    <li>The algorithm: fills PCT/HUC first → CN → EB/ES → RN; respects all caps</li>
-                    <li>Weekends are prioritized first in the fill order</li>
+                    <li>The algorithm: fills PCT first → CN → EB/ES → RN, then levels charge nurses, MID, PCT and bedside RNs within each week</li>
+                    <li>Weekends are filled first, and weekend shifts go to whoever has the fewest weekends so far</li>
                 </ul>
                 <div style="margin-top:8px;font-size:12px;background:#fef3c7;padding:6px 8px;border-radius:4px;color:#744210;">
-                    💡 If results aren't ideal, adjust cap sliders and re-run
+                    💡 If results aren't ideal, adjust the minimums and re-run
                 </div>
             </div>
 
@@ -195,7 +194,7 @@
                 <ul style="font-size:13px;line-height:1.9;padding-left:18px;color:#2d3748;">
                     <li><strong>📥 Download Excel</strong> — multi-sheet workbook:<br>
                         &nbsp;&nbsp;• Coverage Summary (weekday/weekend view)<br>
-                        &nbsp;&nbsp;• Day Shift (ANMs → MID RNs → RNs → PCTs → HUCs)<br>
+                        &nbsp;&nbsp;• Day Shift (ANMs → RNs → MID → PCTs → US)<br>
                         &nbsp;&nbsp;• Night Shift<br>
                         &nbsp;&nbsp;• Original MyTime Import (pre-balance)</li>
                     <li><strong>📋 Download Move Report</strong> — CSV of every change made</li>
@@ -215,7 +214,7 @@
                 </div>
                 <div>
                     <div style="color:#fbd38d;font-weight:600;">Mid Shift (MID)</div>
-                    <div>Counts toward Day coverage. Min 1 MID on Sat and Sun. Kesbeh &amp; Hickman are MID.</div>
+                    <div>Counts toward Day coverage. Weekdays 2–3, weekends exactly 1. Permanent: Hickman (10a–10p), Kesbeh (12p–12a).</div>
                 </div>
                 <div>
                     <div style="color:#fbd38d;font-weight:600;">PTO = Worked Shift</div>
@@ -234,12 +233,12 @@
                     <div>Compliant staff: max 2 changes. Non-compliant: max 6. Blank fills are free (not counted as moves).</div>
                 </div>
                 <div>
-                    <div style="color:#fbd38d;font-weight:600;">HUC / Unit Secretary</div>
-                    <div>Counted same as PCT for coverage. Listed as US in MyTime. Uses 6W18H (day) or 18W6H (night).</div>
+                    <div style="color:#fbd38d;font-weight:600;">US / Unit Secretary</div>
+                    <div>Listed as US in MyTime. Uses 6W18H (day) or 18W6H (night). Counted separately — never counts as a PCT.</div>
                 </div>
                 <div>
                     <div style="color:#fbd38d;font-weight:600;">Mid Shift Requirements</div>
-                    <div>Weekday min 2, Weekend min 1. Permanent: Hickman &amp; Kesbeh. 4 others rotate every 6 weeks.</div>
+                    <div>Weekday 2–3, weekend exactly 1. Permanent: Hickman (PT, 10a–10p) &amp; Kesbeh (FT, 12p–12a). Rotators: Warneke S &amp; Hayes (PM, 1p–1a), Siebert &amp; Heath (AM, 11a–11p) — mid for half the 6 weeks, home shift the other half.</div>
                 </div>
                 <div>
                     <div style="color:#fbd38d;font-weight:600;">Weekend Maximums (removed)</div>
@@ -305,12 +304,12 @@
                     <th style="padding:8px;border:1px solid #9ae6b4;">Req. Count?</th>
                 </tr></thead>
                 <tbody>
-                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">6T19Q, 6T19Q x, 6T19, 7A</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">7A</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Day Shift (7am–7pm)</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">RN, PCT/HUC — <strong>6T19Q x = ANM working as CN (exception)</strong></td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
-                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">6W18H, 6W18</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">7A</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">HUC/US Day Shift</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">HUC (Unit Secretary/US) — day shift code</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
-                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">10W2Q, 10W2, 10W22, MID</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">MID</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Mid Shift (10am–10pm) — counts as day coverage</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Permanent: Hickman, Kesbeh. Rotating: 2 AM + 2 PM staff per 6 weeks</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅ Day</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
-                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">12W00, 12W</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">MID</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Mid Shift (12pm–12am) — counts as day coverage</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Rotating midshifters</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅ Day</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
-                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">18T7Q, 18T7, 7P</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">7P</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Night Shift (7pm–7am)</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">RN, PCT/HUC</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
-                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">18W6H, 18W6</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">7P</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">HUC/US Night Shift</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">HUC (Unit Secretary/US) — night shift code</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
+                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">6T19Q, 6T19Q x, 6T19, 7A</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">7A</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Day Shift (7am–7pm)</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">RN, PCT — <strong>6T19Q x = ANM working as charge nurse (exception)</strong></td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
+                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">6W18H, 6W18</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">7A</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">US Day Shift</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">US (Unit Secretary) — day shift code</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
+                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">10W2Q, 10W2, 10W22, MID</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">MID</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Mid Shift (10am–10pm) — counts as day coverage</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Permanent: Hickman (10am–10pm, PT), Kesbeh (12pm–12am, FT)</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅ Day</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
+                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">11:00 AM, 1:00 PM</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">MID</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Rotating mid shift — 11am–11pm (AM rotators) or 1pm–1am (PM rotators). Counts as day coverage</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Rotators: Siebert &amp; Heath (11am), Warneke S &amp; Hayes (1pm)</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅ Day</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
+                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">18T7Q, 18T7, 7P</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">7P</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">Night Shift (7pm–7am)</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">RN, PCT</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
+                    <tr style="background:#f0fff4;"><td style="padding:7px 8px;border:1px solid #9ae6b4;">18W6H, 18W6</td><td style="padding:7px 8px;border:1px solid #9ae6b4;font-weight:700;color:#22543d;">7P</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">US Night Shift</td><td style="padding:7px 8px;border:1px solid #9ae6b4;">US (Unit Secretary) — night shift code</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td><td style="padding:7px 8px;border:1px solid #9ae6b4;text-align:center;">✅</td></tr>
                 </tbody>
             </table>
             </div>
@@ -330,15 +329,15 @@
                     <th style="padding:8px;text-align:left;border:1px solid #fc8181;">Notes</th>
                 </tr></thead>
                 <tbody>
-                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">PTO, VAC, VACATION</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">PTO</td><td style="padding:7px 8px;border:1px solid #fc8181;">Paid Time Off / Vacation</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">✅ Yes</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Counts toward 18/12 minimum. Color: 🟦 Teal</td></tr>
-                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">C {time} — e.g. C 08:00, C 12:00</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">PTO</td><td style="padding:7px 8px;border:1px solid #fc8181;">Approved PTO (any C code)</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">✅ Yes</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">ANY code starting with C = approved PTO. Color: 🟦 Teal</td></tr>
+                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">PTO, VAC, VACATION</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">PTO</td><td style="padding:7px 8px;border:1px solid #fc8181;">Paid Time Off / Vacation</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">✅ Yes</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Counts toward 18/12 minimum. Color: Green</td></tr>
+                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">C {time} — e.g. C 08:00, C 12:00</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">PTO</td><td style="padding:7px 8px;border:1px solid #fc8181;">Approved PTO (any C code)</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">✅ Yes</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">ANY code starting with C = approved PTO. Color: Green</td></tr>
                     <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">SICK</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">SICK</td><td style="padding:7px 8px;border:1px solid #fc8181;">Sick Leave</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;font-weight:600;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Does NOT fulfill shift minimum</td></tr>
-                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">R/O, RO, R {time} — e.g. R 12:00, R 23:59</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">R/O</td><td style="padding:7px 8px;border:1px solid #fc8181;">Requested Off (any R code)</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;font-weight:600;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">ANY code starting with R = request off. Does NOT count toward anything. Color: 🟣 Purple</td></tr>
+                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">R/O, RO, R {time} — e.g. R 12:00, R 23:59</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">R/O</td><td style="padding:7px 8px;border:1px solid #fc8181;">Requested Off (any R code)</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;font-weight:600;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">ANY code starting with R = request off. Does NOT count toward anything. Color: Light pink</td></tr>
                     <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">HOL, HOLIDAY</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">HOL</td><td style="padding:7px 8px;border:1px solid #fc8181;">Holiday</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;font-weight:600;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Holiday leave</td></tr>
-                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">Open x</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">EDU</td><td style="padding:7px 8px;border:1px solid #fc8181;">Education Hours</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;font-weight:600;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Education/training time — not coverage, not requirements</td></tr>
+                    <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">Open x, Teach x, E codes</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">EDU</td><td style="padding:7px 8px;border:1px solid #fc8181;">Education Hours</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;font-weight:600;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Class / central lines / education — not coverage, not requirements. Color: Red</td></tr>
                     <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">FMLA</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">FMLA</td><td style="padding:7px 8px;border:1px solid #fc8181;">FMLA Leave</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">✅ Yes</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Family/Medical Leave — counts toward minimum</td></tr>
                     <tr style="background:#fff5f5;"><td style="padding:7px 8px;border:1px solid #fc8181;">LOA</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">LOA</td><td style="padding:7px 8px;border:1px solid #fc8181;">Leave of Absence</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">✅ Yes</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#718096;font-style:italic;">Extended leave — counts toward minimum</td></tr>
-                    <tr style="background:#fffbeb;"><td style="padding:7px 8px;border:1px solid #fc8181;">PAYRO</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">PAYRO</td><td style="padding:7px 8px;border:1px solid #fc8181;">ANM Payroll Code</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">✅ Yes</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#744210;font-style:italic;font-weight:600;">ANM payroll shift — NOT a PTO request. Color: 🔴 Red</td></tr>
+                    <tr style="background:#fffbeb;"><td style="padding:7px 8px;border:1px solid #fc8181;">PAYRO</td><td style="padding:7px 8px;border:1px solid #fc8181;font-weight:700;">PAYRO</td><td style="padding:7px 8px;border:1px solid #fc8181;">ANM Payroll Code</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#22543d;font-weight:600;">✅ Yes</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #fc8181;color:#744210;font-style:italic;font-weight:600;">ANM payroll shift — NOT a PTO request</td></tr>
                 </tbody>
             </table>
             </div>
@@ -346,7 +345,7 @@
 
         <!-- ANM SPECIAL CODES -->
         <div style="margin-bottom:16px;">
-            <div style="background:#2c5282;color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px;">🔒 ANM CODES (Assistant Nurse Managers — Cruz, Rodriguez, Bruce, Sala, Wells)</div>
+            <div style="background:#2c5282;color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px;">🔒 ANM CODES (Assistant Nurse Managers — Cruz, Bruce, Wells, Raymond, Madison Warneke)</div>
             <div style="overflow-x:auto;">
             <table style="width:100%;border-collapse:collapse;font-size:13px;">
                 <thead><tr style="background:#ebf8ff;">
@@ -357,10 +356,12 @@
                     <th style="padding:8px;border:1px solid #90cdf4;">Req. Count?</th>
                 </tr></thead>
                 <tbody>
-                    <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">6T19Q x (with x)</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;color:#22543d;">7A</td><td style="padding:7px 8px;border:1px solid #90cdf4;"><strong>EXCEPTION — ANM working as Charge Nurse</strong></td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#22543d;font-weight:700;">✅ Yes (as CN)</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
-                    <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">4:00 AM (Rowena only)</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;">ADMIN</td><td style="padding:7px 8px;border:1px solid #90cdf4;">Early admin/office shift (4am–12pm)</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
-                    <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">7:30 AM (ANM office)</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;">7A</td><td style="padding:7px 8px;border:1px solid #90cdf4;">Translates by clinical window — ANM blocked from coverage by canAdd</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
-                    <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">10:45 AM (midshift staff)</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;">MID</td><td style="padding:7px 8px;border:1px solid #90cdf4;">10–2pm window → MID. Counts toward AM requirements &amp; midshift coverage</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#22543d;">✅ MID</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
+                    <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">6T19Q x (with x)</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;color:#22543d;">7A</td><td style="padding:7px 8px;border:1px solid #90cdf4;"><strong>EXCEPTION — ANM working as day charge nurse</strong> (Cruz, Wells)</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#22543d;font-weight:700;">✅ Yes (as CN)</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
+                    <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">4:00 AM (Rowena only)</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;">ADMIN</td><td style="padding:7px 8px;border:1px solid #90cdf4;">Early admin/office shift (4am–12pm) — never counts as coverage</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
+                    <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">18T7Q x (with x)</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;">7P</td><td style="padding:7px 8px;border:1px solid #90cdf4;"><strong>EXCEPTION — ANM working as night charge nurse</strong> (Raymond, Madison Warneke)</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#742a2a;">✅ Yes (as CN)</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
+                    <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">8:00 AM</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;">ADMIN</td><td style="padding:7px 8px;border:1px solid #90cdf4;">ANM office time (Bruce, Wells)</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
+                    <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">1:00 PM</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;">ADMIN</td><td style="padding:7px 8px;border:1px solid #90cdf4;">ANM office time (Bruce)</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
+                    <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">7:00 PM</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;">ADMIN</td><td style="padding:7px 8px;border:1px solid #90cdf4;">ANM night office time (Raymond, Madison Warneke)</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
                     <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">C {anything}</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;">PTO</td><td style="padding:7px 8px;border:1px solid #90cdf4;">Approved PTO for ANM</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
                     <tr style="background:#ebf8ff;"><td style="padding:7px 8px;border:1px solid #90cdf4;">PAYRO</td><td style="padding:7px 8px;border:1px solid #90cdf4;font-weight:700;">PAYRO</td><td style="padding:7px 8px;border:1px solid #90cdf4;">ANM payroll adjustment</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;color:#742a2a;">❌ No</td><td style="padding:7px 8px;border:1px solid #90cdf4;text-align:center;">✅</td></tr>
                 </tbody>
@@ -374,11 +375,12 @@
             <div style="overflow-x:auto;">
             <table style="width:100%;border-collapse:collapse;font-size:13px;">
                 <tbody>
-                    <tr><td style="padding:8px 12px;background:#E91E8C;color:white;font-weight:700;width:120px;">🩷 Pink</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">Shift added or moved by the balancer</td></tr>
-                    <tr><td style="padding:8px 12px;background:#7B2D8B;color:white;font-weight:700;">🟣 Purple</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">R/O — Requested off (any R code)</td></tr>
-                    <tr><td style="padding:8px 12px;background:#0097A7;color:white;font-weight:700;">🟦 Teal</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">PTO / Vacation / C codes (approved leave)</td></tr>
-                    <tr><td style="padding:8px 12px;background:#C62828;color:white;font-weight:700;">🔴 Red</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">ADMIN / PAYRO (office/admin time)</td></tr>
-                    <tr><td style="padding:8px 12px;background:#f7fafc;border:1px solid #e2e8f0;font-weight:700;">⬜ White</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">Self-scheduled working shift (unchanged)</td></tr>
+                    <tr><td style="padding:8px 12px;background:#A9D18E;font-weight:700;width:120px;">Green</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">PTO / vacation / C codes / FMLA / LOA</td></tr>
+                    <tr><td style="padding:8px 12px;background:#E53935;color:white;font-weight:700;">Red</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">Class / central lines / education (Open x, Teach, E codes)</td></tr>
+                    <tr><td style="padding:8px 12px;background:#F8C8DC;font-weight:700;">Light pink</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">Request off (any R code)</td></tr>
+                    <tr><td style="padding:8px 12px;background:#4BA3D3;color:white;font-weight:700;">Blue</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">Shift moved or added by the balancer</td></tr>
+                    <tr><td style="padding:8px 12px;background:#D9D2E9;font-weight:700;">Light purple</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">Holiday (Thanksgiving &amp; Black Friday, Christmas Eve &amp; Day, New Year's Eve &amp; Day)</td></tr>
+                    <tr><td style="padding:8px 12px;background:#f7fafc;border:1px solid #e2e8f0;font-weight:700;">White</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">Self-scheduled working shift (unchanged)</td></tr>
                 </tbody>
             </table>
             </div>
@@ -388,16 +390,16 @@
         <div style="margin-bottom:16px;">
             <div style="background:#2d3748;color:white;padding:8px 12px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px;">✏️ QUICK SUMMARY</div>
             <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                <tr style="background:#f0fff4;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What counts as a WORKING shift?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;">7A (Day), MID/10W22/12W00 (Mid), 7P (Night), 6W18H/18W6H (HUC)</td></tr>
+                <tr style="background:#f0fff4;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What counts as a WORKING shift?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;">7A (Day), MID — 10W22 / 11:00 AM / 1:00 PM (Mid), 7P (Night), 6W18H/18W6H (US)</td></tr>
                 <tr style="background:#fff;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What does ANY "C" code mean?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#22543d;font-weight:600;">PTO — approved leave. Counts toward requirements but NOT coverage.</td></tr>
                 <tr style="background:#fff5f5;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What does ANY "R" code mean?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#742a2a;font-weight:600;">R/O — requested off. Does NOT count toward anything.</td></tr>
                 <tr style="background:#f0fff4;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Do MID shifts count toward day coverage?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;">YES — always counts toward day coverage, even for rotating PM nurses</td></tr>
-                <tr style="background:#fff;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Who are permanent midshifters?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;">Hickman, Erika and Kesbeh, Shroq O — always MID. 4 others rotate every 6 weeks.</td></tr>
+                <tr style="background:#fff;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Who are permanent midshifters?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;">Hickman, Erika (PT, 10am–10pm) and Kesbeh, Shroq O (FT, 12pm–12am). Rotators: Warneke S, Hayes, Siebert, Heath.</td></tr>
                 <tr style="background:#f0fff4;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What is "Open x"?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#742a2a;font-weight:600;">Education hours (EDU) — does NOT count toward coverage or requirements.</td></tr>
                 <tr style="background:#fff;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Does PTO count toward shift requirement?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#22543d;font-weight:600;">YES — PTO/FMLA/LOA/C codes count toward 18 (FT) / 12 (PT) minimum</td></tr>
                 <tr style="background:#fff5f5;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">Does SICK count?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#742a2a;font-weight:600;">NO — sick time does not fulfill shift minimum</td></tr>
-                <tr style="background:#fffbeb;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What does HUC mean?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;">Hospital Unit Clerk (listed as US in MyTime). Counted same as PCT for coverage. Uses 6W18H (day) or 18W6H (night).</td></tr>
-                <tr style="background:#fff;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">When does an ANM count toward coverage?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#22543d;font-weight:600;">ONLY when they have 6T19Q x (with the x) — they count as the Charge Nurse that day.</td></tr>
+                <tr style="background:#fffbeb;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">What is US?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;">Unit Secretary (listed as US in MyTime). Uses 6W18H (day) or 18W6H (night). Counted separately — does NOT count as a PCT. PCT is minimum 1, maximum 2 per shift.</td></tr>
+                <tr style="background:#fff;"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:600;">When does an ANM count toward coverage?</td><td style="padding:7px 10px;border:1px solid #e2e8f0;color:#22543d;font-weight:600;">ONLY when they have 6T19Q x (days) or 18T7Q x (nights) — they are the charge nurse that shift. On other days a staff RN is charge, so one extra RN is scheduled.</td></tr>
             </table>
         </div>
 
@@ -442,7 +444,7 @@
             <div style="background:#f7fafc;border:2px solid #cbd5e0;border-radius:8px;padding:14px;">
                 <div style="font-weight:700;color:#2d3748;font-size:14px;margin-bottom:8px;">🔒 Protected Staff</div>
                 <table style="width:100%;font-size:12px;border-collapse:collapse;">
-                    <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:3px 6px;font-weight:600;">ANMs</td><td style="padding:3px 6px;">Cruz, Rodriguez, Bruce — never moved</td></tr>
+                    <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:3px 6px;font-weight:600;">ANMs</td><td style="padding:3px 6px;">Cruz, Bruce, Wells, Raymond, Madison Warneke — never moved</td></tr>
                     <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:3px 6px;font-weight:600;">PRN</td><td style="padding:3px 6px;">Never moved; no weekend req</td></tr>
                     <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:3px 6px;font-weight:600;">User-protected</td><td style="padding:3px 6px;">School, FMLA, vacation selections</td></tr>
                     <tr><td style="padding:3px 6px;font-weight:600;">Shift separation</td><td style="padding:3px 6px;">AM ↔ PM pools never cross</td></tr>
@@ -480,7 +482,7 @@
 
     <div class="card hidden" id="requirementsSection">
         <div class="card-title">⚙️ Step 2: Set Coverage Requirements</div>
-        <div style="font-size:13px;color:#718096;margin-bottom:12px;">Weekday = Mon–Fri &nbsp;|&nbsp; Weekend = Sat/Sun &nbsp;|&nbsp; <strong>Cap = Min + offset</strong> &nbsp;|&nbsp; PCT/HUC counted together — tweak to control max RN overage</div>
+        <div style="font-size:13px;color:#718096;margin-bottom:12px;">Weekday = Mon–Fri &nbsp;|&nbsp; Weekend = Sat/Sun (nights: Fri/Sat/Sun) &nbsp;|&nbsp; Every day balanced to min or min + 1 bedside RNs</div>
 
         <div style="background:#ebf8ff;border:2px solid #90cdf4;border-radius:8px;padding:16px;margin-bottom:12px;">
             <div style="font-weight:600;font-size:14px;margin-bottom:8px;">📅 Scheduling Status</div>
@@ -491,48 +493,21 @@
             <div id="scheduleStatusHelp" style="font-size:12px;color:#2c5282;margin-top:8px;">Remaining gaps will be labeled as a draft projection while submissions are still open.</div>
         </div>
 
-        <!-- RN MIN + CAP ROW -->
+        <!-- RN MIN ROW (v32: offsets and dressing-day rules removed) -->
         <div style="background:#edf2f7;border-radius:8px;padding:16px;margin-bottom:12px;">
-            <div style="font-weight:600;font-size:14px;margin-bottom:12px;">👩‍⚕️ RN Coverage — Minimum &amp; Max Cap (+/- over min)</div>
+            <div style="font-weight:600;font-size:14px;margin-bottom:6px;">👩‍⚕️ Bedside RN Target — balanced to a 1-RN band (min to min + 1)</div>
+            <div style="font-size:12px;color:#4a5568;margin-bottom:12px;">Bedside RNs = staff RNs working, minus one when a staff RN (not an ANM) is the charge nurse.</div>
             <div class="stats-grid">
                 <div>
                     <div class="slider-group">
-                        <div class="slider-label"><span>☀️ RN Weekday Min</span><span class="slider-value" id="rnWdValue">15</span></div>
+                        <div class="slider-label"><span>☀️ Weekday Bedside RN Min</span><span class="slider-value" id="rnWdValue">15</span></div>
                         <input type="range" id="rnWdSlider" min="1" max="30" value="15">
-                    </div>
-                    <div class="slider-group">
-                        <div class="slider-label">
-                            <span>Mon/Tue/Wed/Fri Max offset</span>
-                            <span class="slider-value">+<span id="rnWdCapVal">1</span> → max <span id="rnWdMaxDisplay">16</span></span>
-                        </div>
-                        <input type="range" id="rnWdCapSlider" min="0" max="4" value="1">
-                    </div>
-                    <div class="slider-group">
-                        <div class="slider-label">
-                            <span>🔧 Thursday Max offset (dressing day)</span>
-                            <span class="slider-value">+<span id="rnThuCapVal">1</span> → max <span id="rnThuMaxDisplay">16</span></span>
-                        </div>
-                        <input type="range" id="rnThuCapSlider" min="0" max="4" value="1">
                     </div>
                 </div>
                 <div>
                     <div class="slider-group">
-                        <div class="slider-label"><span>📅 RN Weekend Min</span><span class="slider-value" id="rnWeValue">15</span></div>
+                        <div class="slider-label"><span>📅 Weekend Bedside RN Min</span><span class="slider-value" id="rnWeValue">15</span></div>
                         <input type="range" id="rnWeSlider" min="1" max="30" value="15">
-                    </div>
-                    <div class="slider-group">
-                        <div class="slider-label">
-                            <span>Saturday Max offset</span>
-                            <span class="slider-value">+<span id="rnSatCapVal">1</span> → max <span id="rnSatMaxDisplay">16</span></span>
-                        </div>
-                        <input type="range" id="rnSatCapSlider" min="0" max="4" value="1">
-                    </div>
-                    <div class="slider-group">
-                        <div class="slider-label">
-                            <span>Sunday Max offset (dressing day)</span>
-                            <span class="slider-value">+<span id="rnSunCapVal">1</span> → max <span id="rnSunMaxDisplay">16</span></span>
-                        </div>
-                        <input type="range" id="rnSunCapSlider" min="0" max="4" value="1">
                     </div>
                 </div>
             </div>
@@ -542,19 +517,19 @@
         <div class="stats-grid">
             <div>
                 <div class="slider-group">
-                    <div class="slider-label"><span>☀️ PCT/HUC Weekday Min</span><span class="slider-value" id="pctWdValue">2</span></div>
-                    <input type="range" id="pctWdSlider" min="1" max="10" value="2">
+                    <div class="slider-label"><span>☀️ PCT Weekday Min (max 2)</span><span class="slider-value" id="pctWdValue">1</span></div>
+                    <input type="range" id="pctWdSlider" min="1" max="2" value="1">
                 </div>
             </div>
             <div>
                 <div class="slider-group">
-                    <div class="slider-label"><span>📅 PCT/HUC Weekend Min</span><span class="slider-value" id="pctWeValue">1</span></div>
-                    <input type="range" id="pctWeSlider" min="0" max="10" value="1">
+                    <div class="slider-label"><span>📅 PCT Weekend Min (max 2)</span><span class="slider-value" id="pctWeValue">1</span></div>
+                    <input type="range" id="pctWeSlider" min="1" max="2" value="1">
                 </div>
             </div>
             <div>
                 <div class="slider-group">
-                    <div class="slider-label"><span>Assigned CNs (minimum 2 / maximum 4)</span><span class="slider-value" id="chgValue">2</span></div>
+                    <div class="slider-label"><span>Charge Nurses (minimum 2)</span><span class="slider-value" id="chgValue">2</span></div>
                     <input type="range" id="chgSlider" min="2" max="2" value="2" disabled>
                     <div style="font-size:11px;color:#718096;margin-top:4px;">Additional CN-qualified nurses may still work as regular bedside RNs.</div>
                 </div>
@@ -573,13 +548,13 @@
             </div>
             <div>
                 <div class="slider-group">
-                    <div class="slider-label"><span>🔄 MID Shift Weekday Min (Mon–Fri)</span><span class="slider-value" id="midWdValue">2</span></div>
+                    <div class="slider-label"><span>🔄 MID Shift Weekday Min (Mon–Fri, max 3)</span><span class="slider-value" id="midWdValue">2</span></div>
                     <input type="range" id="midWdSlider" min="0" max="6" value="2">
                 </div>
             </div>
             <div>
                 <div class="slider-group">
-                    <div class="slider-label"><span>🔄 MID Shift Weekend Min (Sat–Sun)</span><span class="slider-value" id="midWeValue">1</span></div>
+                    <div class="slider-label"><span>🔄 MID Shift Weekend (Sat–Sun, exactly 1)</span><span class="slider-value" id="midWeValue">1</span></div>
                     <input type="range" id="midWeSlider" min="0" max="4" value="1">
                 </div>
             </div>
@@ -592,7 +567,7 @@
         <div style="margin-bottom:10px;"><label style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;"><input type="checkbox" id="scheduledRosterOnly" onchange="renderStaffBreakdown()"> Show only employees scheduled in this uploaded period</label></div>
         <div id="staffBreakdownContent" style="margin-bottom:20px;"></div>
         <div class="alert alert-warning" style="margin-bottom:16px;">
-            <strong>⚠️ Protected Staff:</strong> ANMs (Cruz, Rodriguez, Bruce) will never be moved during balancing.
+            <strong>⚠️ Protected Staff:</strong> ANMs (Cruz, Bruce, Wells, Raymond, Madison Warneke) will never be moved during balancing.
         </div>
         <div style="background:#f7fafc;border:2px solid #667eea;border-radius:8px;padding:16px;margin-bottom:20px;">
             <div style="font-weight:600;font-size:16px;color:#667eea;margin-bottom:12px;">💾 Master Staff Database</div>
@@ -614,7 +589,7 @@
             <div style="font-weight:600;font-size:16px;margin-bottom:16px;">➕ Add New Employee</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                 <div><label style="display:block;font-size:14px;margin-bottom:4px;font-weight:600;">Name:</label><input type="text" id="newEmployeeName" placeholder="Last, First" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:6px;"></div>
-                <div><label style="display:block;font-size:14px;margin-bottom:4px;font-weight:600;">Job:</label><select id="newEmployeeJob" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:6px;"><option value="RN">RN</option><option value="PCT">PCT</option><option value="HUC">HUC</option><option value="AMGR">AMGR</option></select></div>
+                <div><label style="display:block;font-size:14px;margin-bottom:4px;font-weight:600;">Job:</label><select id="newEmployeeJob" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:6px;"><option value="RN">RN</option><option value="PCT">PCT</option><option value="US">US (Unit Secretary)</option><option value="AMGR">AMGR</option></select></div>
                 <div><label style="display:block;font-size:14px;margin-bottom:4px;font-weight:600;">Type:</label><select id="newEmployeeType" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:6px;"><option value="FT">FT (Full-time)</option><option value="PT">PT (Part-time)</option><option value="PRN">PRN</option></select></div>
                 <div><label style="display:block;font-size:14px;margin-bottom:4px;font-weight:600;">Shift:</label><select id="newEmployeeShift" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:6px;"><option value="AM">Day (AM)</option><option value="PM">Night (PM)</option><option value="MIDSHIFT">Mid</option><option value="">(unassigned)</option></select></div>
                 <div style="grid-column:span 2;"><label style="display:block;font-size:14px;margin-bottom:4px;font-weight:600;">Skills:</label><input type="text" id="newEmployeeSkills" placeholder="CN, ES, EB, etc." style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:6px;"></div>
@@ -760,30 +735,31 @@
 <script>
     const STAFF_ROSTER_LOOKUP = {
         "Aldape, Abigail C": {"type":"FT","skill":"","job":"PCT","shift":"AM"},
-        "Alfred, Ajuma": {"type":"FT","skill":"","job":"RN","shift":"PM"},
         "Arredondo, Abigail": {"type":"PRN","skill":"","job":"RN","shift":"AM"},
         "Avalos, Jorge": {"type":"PRN","skill":"ES/CN","job":"RN","shift":"AM"},
         "Barakat, Norah": {"type":"FT","skill":"","job":"RN","shift":"AM"},
         "Bency, Julie": {"type":"FT","skill":"ES","job":"RN","shift":"AM"},
-        "Blake, Meghan M": {"type":"FT","skill":"ES","job":"RN","shift":"AM"},
-        "Bogard, Brianna": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
-        "Breckel, Carli": {"type":"FT","skill":"ES/CN","job":"RN","shift":"PM"},
-        "Bruce, Jessica": {"type":"FT","skill":"","job":"RN","shift":"MIDSHIFT"},
-        "Cailing, Manuel": {"type":"FT","skill":"ES","job":"RN","shift":"AM"},
-        "Chairez, Odalys Y": {"type":"FT","skill":"ES/CN","job":"RN","shift":"AM"},
-        "Chavarria, Raul M": {"type":"FT","skill":"","job":"RN","shift":"PM"},
         "Bird, David": {"type":"FT","skill":"","job":"RN","shift":"PM"},
+        "Blake, Meghan M": {"type":"FT","skill":"ES","job":"RN","shift":"AM"},
+        "Bogard, Brianna": {"type":"FT","skill":"ES","job":"RN","shift":"AM"},
         "Botkin, Samantha": {"type":"FT","skill":"","job":"RN","shift":"PM"},
+        "Breckel, Carli": {"type":"FT","skill":"ES/CN","job":"RN","shift":"PM"},
+        "Bruce, Jessica": {"type":"FT","skill":"","job":"AMGR","shift":"AM"},
+        "Cailing, Manuel": {"type":"FT","skill":"ES","job":"RN","shift":"AM"},
         "Callicoatte, Adina": {"type":"FT","skill":"","job":"RN","shift":"PM"},
+        "Chairez, Odalys Y": {"type":"PT","skill":"ES/CN","job":"RN","shift":"AM"},
+        "Chavarria, Raul M": {"type":"FT","skill":"","job":"RN","shift":"PM"},
         "Chen, Maggie M": {"type":"FT","skill":"ES","job":"RN","shift":"AM"},
         "Cherian, Anithamol": {"type":"PT","skill":"ES","job":"RN","shift":"PM"},
         "Cho, Jennifer": {"type":"FT","skill":"EB/CN","job":"RN","shift":"AM"},
         "Claudio, Edelbert": {"type":"FT","skill":"EB/CN","job":"RN","shift":"AM"},
-        "Crayton, Karonda": {"type":"FT","skill":"","job":"HUC","shift":"AM"},
-        "Cruz, Rowena": {"type":"FT","skill":"","job":"RN","shift":"AM"},
-        "DeLuna, Travis": {"type":"FT","skill":"EB","job":"RN","shift":"PM"},
+        "Crayton, Karonda": {"type":"FT","skill":"","job":"US","shift":"AM"},
+        "Cruz, Rowena": {"type":"FT","skill":"","job":"AMGR","shift":"AM"},
+        "Davis, Sydney": {"type":"FT","skill":"","job":"RN","shift":"PM"},
+        "DeLuna, Travis": {"type":"FT","skill":"ES","job":"RN","shift":"PM"},
         "Devadoss, Sachithanadam": {"type":"FT","skill":"ES/CN","job":"RN","shift":"AM"},
-        "Dismuke, Brittany": {"type":"FT","skill":"","job":"HUC","shift":"PM"},
+        "Dismuke, Brittany": {"type":"FT","skill":"","job":"US","shift":"PM"},
+        "Dismuke, Khadeja": {"type":"PRN","skill":"","job":"PCT","shift":"AM"},
         "Doman, Antonilo D": {"type":"FT","skill":"","job":"PCT","shift":"AM"},
         "Dominguez, Monica": {"type":"PRN","skill":"","job":"PCT","shift":"AM"},
         "Douglas, Kyondra S": {"type":"PRN","skill":"","job":"RN","shift":"PM"},
@@ -794,12 +770,12 @@
         "Gill, Kamran J": {"type":"FT","skill":"","job":"RN","shift":"AM"},
         "Guerrero, Gabriel D": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
         "Guzman Duran, Daysi": {"type":"FT","skill":"ES","job":"RN","shift":"AM"},
-        "Hall, Amanda": {"type":"FT","skill":"EB","job":"RN","shift":"PM"},
+        "Hall, Amanda": {"type":"PRN","skill":"EB","job":"RN","shift":"PM"},
+        "HAMDAN, SAMMAR": {"type":"FT","skill":"","job":"RN","shift":"PM"},
         "Hampton, Stephanie T": {"type":"PRN","skill":"","job":"PCT","shift":"PM"},
         "Hansard, Gabrielle E": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
-        "Harper, Bethany A": {"type":"PT","skill":"ES","job":"RN","shift":"AM"},
+        "Harty, Kelly": {"type":"PRN","skill":"","job":"RN","shift":"AM"},
         "Hayes, Tyler": {"type":"FT","skill":"EB","job":"RN","shift":"PM"},
-        "Davis, Sydney": {"type":"FT","skill":"","job":"RN","shift":"PM"},
         "Heath, Logan": {"type":"FT","skill":"","job":"RN","shift":"AM"},
         "Hendrie, Melissa": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
         "Hernandez, Lilia E": {"type":"PT","skill":"EB","job":"RN","shift":"AM"},
@@ -807,71 +783,73 @@
         "Ho-Mowdy, Cathy": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
         "Hudson, Jackice": {"type":"FT","skill":"EB","job":"RN","shift":"PM"},
         "Jimenez, Feliberto": {"type":"PRN","skill":"","job":"RN","shift":"AM"},
-        "Harty, Kelly": {"type":"PRN","skill":"","job":"RN","shift":"AM"},
         "Jimenez, Krystal": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
         "Jones, Shanice": {"type":"PT","skill":"","job":"PCT","shift":"PM"},
-        "Joseph, Tevin Jacob": {"type":"PRN","skill":"","job":"HUC","shift":"PM"},
+        "Joseph, Tevin Jacob": {"type":"PRN","skill":"","job":"US","shift":"PM"},
         "Joshy, Darly": {"type":"FT","skill":"ES","job":"RN","shift":"PM"},
-        "Joy, Faith": {"type":"FT","skill":"EB","job":"RN","shift":"PM"},
-        "Joya Soto, Arturo B": {"type":"PRN","skill":"","job":"RN","shift":"PM"},
+        "Joy, Faith": {"type":"FT","skill":"ES/CN","job":"RN","shift":"PM"},
+        "Joya Soto, Arturo B": {"type":"PRN","skill":"ES","job":"RN","shift":"PM"},
         "Kaufmann, Taylor J": {"type":"PT","skill":"EB","job":"RN","shift":"AM"},
         "Kelly, Skyla": {"type":"FT","skill":"","job":"RN","shift":"PM"},
-        "Kesbeh, Shroq O": {"type":"FT","skill":"","job":"RN","shift":"MIDSHIFT"},
+        "Kesbeh, Shroq O": {"type":"FT","skill":"ES/CN","job":"RN","shift":"MIDSHIFT"},
         "Kessellie, Araminta L": {"type":"PRN","skill":"","job":"RN","shift":"PM"},
         "Kirk, Greg B": {"type":"FT","skill":"ES","job":"RN","shift":"PM"},
         "Kuriakose, Hannah S": {"type":"FT","skill":"","job":"RN","shift":"PM"},
         "Langford, Robyn J": {"type":"FT","skill":"","job":"PCT","shift":"AM"},
         "Lee, Haeun": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
-        "Lias, Imani A": {"type":"FT","skill":"","job":"HUC","shift":"AM"},
+        "Lias, Imani A": {"type":"FT","skill":"","job":"US","shift":"AM"},
         "Macias, Gissela": {"type":"FT","skill":"","job":"PCT","shift":"PM"},
         "Mahowald, Caroline R": {"type":"FT","skill":"EB/CN","job":"RN","shift":"AM"},
-        "Makinde, Andrew": {"type":"FT","skill":"","job":"RN","shift":"AM"},
+        "Makinde, Andrew": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
         "Martinez Hernandez, Kimberlyn D": {"type":"FT","skill":"","job":"RN","shift":"PM"},
-        "Martinez, Samantha": {"type":"FT","skill":"ES","job":"RN","shift":"AM"},
+        "Martinez, Samantha": {"type":"FT","skill":"ES/CN","job":"RN","shift":"AM"},
         "Mathew, Nisha J": {"type":"PT","skill":"EB","job":"RN","shift":"AM"},
         "Mathews, Ana R": {"type":"PRN","skill":"","job":"PCT","shift":"PM"},
         "McKeown, Melanie V": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
         "McLean, Elyssa": {"type":"FT","skill":"EB/CN","job":"RN","shift":"AM"},
-        "Peak, Elyssa": {"type":"FT","skill":"EB/CN","job":"RN","shift":"AM"},
-        "Nguyen, Thiara T": {"type":"FT","skill":"","job":"RN","shift":"PM"},
         "Nance, Victoria": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
+        "Nardo, Anna": {"type":"FT","skill":"","job":"RN","shift":"PM"},
+        "Nguyen, Thiara": {"type":"FT","skill":"","job":"RN","shift":"PM"},
+        "Nguyen, Thiara T": {"type":"FT","skill":"","job":"RN","shift":"PM"},
         "Oberhelman, Kassidy L": {"type":"FT","skill":"ES/CN","job":"RN","shift":"PM"},
         "Ortiz, Karina": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
         "Ortiz, Susana": {"type":"FT","skill":"","job":"PCT","shift":"AM"},
-        "PRINCE DIAMONDRAJ, FRANCIS M": {"type":"FT","skill":"EB","job":"RN","shift":"PM"},
         "Paddyaker, Spencer": {"type":"FT","skill":"ES","job":"RN","shift":"AM"},
-        "Patel, Rachel": {"type":"FT","skill":"","job":"RN","shift":"PM"},
+        "Patel, Rachel": {"type":"FT","skill":"EB","job":"RN","shift":"PM"},
         "Patterson, Nathan": {"type":"FT","skill":"","job":"PCT","shift":"PM"},
-        "Nguyen, Thiara": {"type":"FT","skill":"","job":"RN","shift":"PM"},
-        "Pfaff, Lillian G": {"type":"FT","skill":"","job":"RN","shift":"AM"},
+        "Peak, Elyssa": {"type":"FT","skill":"EB/CN","job":"RN","shift":"AM"},
+        "Pfaff, Lillian G": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
+        "PRINCE DIAMONDRAJ, FRANCIS M": {"type":"FT","skill":"EB","job":"RN","shift":"PM"},
         "Pulido, Gabrielle N": {"type":"FT","skill":"EB","job":"RN","shift":"PM"},
         "Quinones, Quiryat J": {"type":"PRN","skill":"EB","job":"RN","shift":"PM"},
-        "Raymond, Joseph D": {"type":"FT","skill":"","job":"RN","shift":"PM"},
-        "Rodriguez, Althea Nadine": {"type":"FT","skill":"","job":"RN","shift":"AM"},
-        "Rodriguez, Mayra": {"type":"FT","skill":"","job":"PCT","shift":"AM"},
-        "Ross, Daysha": {"type":"FT","skill":"","job":"RN","shift":"PM"},
-        "SIBANDA, PAMELA": {"type":"FT","skill":"","job":"RN","shift":"PM"},
+        "Raven, Taiya D": {"type":"FT","skill":"","job":"RN","shift":"PM"},
+        "Rawlins, Abbey N": {"type":"FT","skill":"","job":"RN","shift":"PM"},
+        "Raymond, Joseph D": {"type":"FT","skill":"","job":"AMGR","shift":"PM"},
         "Roberts, Ariana": {"type":"FT","skill":"","job":"RN","shift":"PM"},
+        "Rodriguez, Mayra": {"type":"FT","skill":"","job":"PCT","shift":"AM"},
+        "Ross, Daysha": {"type":"PT","skill":"","job":"RN","shift":"PM"},
         "Sanchez, Catherine": {"type":"FT","skill":"ES/CN","job":"RN","shift":"AM"},
         "Sandoval, Alicia": {"type":"FT","skill":"","job":"PCT","shift":"PM"},
         "Schultz, Ellie F": {"type":"FT","skill":"ES/CN","job":"RN","shift":"AM"},
-        "Segura, Genova": {"type":"FT","skill":"","job":"RN","shift":"AM"},
-        "Siebert, Reagan": {"type":"FT","skill":"","job":"RN","shift":"AM"},
-        "Smith, Joshua B": {"type":"FT","skill":"EB","job":"RN","shift":"PM"},
+        "Segura, Genova": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
+        "SIBANDA, PAMELA": {"type":"FT","skill":"","job":"RN","shift":"PM"},
+        "Siebert, Reagan": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
+        "Smith, Joshua B": {"type":"FT","skill":"ES/CN","job":"RN","shift":"PM"},
         "Sotelo, Bryant": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
         "Sparks, Nina E": {"type":"FT","skill":"EB","job":"RN","shift":"PM"},
         "Stovall, Katherine": {"type":"FT","skill":"ES","job":"RN","shift":"AM"},
-        "Thomas, Maya": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
+        "Thomas, Maya": {"type":"FT","skill":"ES/CN","job":"RN","shift":"AM"},
         "Thrasher, Jarrett C": {"type":"FT","skill":"EB/CN","job":"RN","shift":"AM"},
         "Tijerina, Sierra": {"type":"FT","skill":"EB/CN","job":"RN","shift":"AM"},
         "Timmons, Aleyah R": {"type":"FT","skill":"ES","job":"RN","shift":"AM"},
         "Trahan, Timayah": {"type":"FT","skill":"","job":"RN","shift":"PM"},
         "Tran, Hue H": {"type":"FT","skill":"ES","job":"RN","shift":"AM"},
-        "Tran, Hung": {"type":"FT","skill":"","job":"RN","shift":"AM"},
+        "Tran, Hung": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
         "Uwera, Sandrine": {"type":"FT","skill":"EB/CN","job":"RN","shift":"PM"},
-        "VanDeKop, Jordan": {"type":"FT","skill":"ES/CN","job":"RN","shift":"PM"},
+        "VanDeKop, Jordan": {"type":"PRN","skill":"ES/CN","job":"RN","shift":"PM"},
         "Vasquez, Kathelyn R": {"type":"FT","skill":"","job":"PCT","shift":"AM"},
-        "Warneke, Shanen": {"type":"FT","skill":"EB","job":"RN","shift":"PM"},
+        "Warneke, Madison": {"type":"FT","skill":"","job":"AMGR","shift":"PM"},
+        "Warneke, Shanen": {"type":"FT","skill":"ES/CN","job":"RN","shift":"PM"},
         "Watkins, Grace": {"type":"FT","skill":"","job":"RN","shift":"PM"},
         "Webb, Taylor": {"type":"FT","skill":"","job":"RN","shift":"PM"},
         "Weik, Meghan C": {"type":"FT","skill":"","job":"RN","shift":"PM"},
@@ -880,25 +858,30 @@
         "White, Ariel": {"type":"PRN","skill":"EB","job":"RN","shift":"PM"},
         "Wiggins, Kyler": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
         "Winter, Kassidy T": {"type":"PT","skill":"EB","job":"RN","shift":"AM"},
-        "Wu, Nancy": {"type":"FT","skill":"","job":"HUC","shift":"PM"},
-        "Zhang, Ruth C": {"type":"FT","skill":"ES/CN","job":"RN","shift":"AM"}
+        "Wu, Nancy": {"type":"FT","skill":"","job":"US","shift":"PM"},
+        "Zhang, Ruth C": {"type":"FT","skill":"ES/CN","job":"RN","shift":"AM"},
     };
 
-    const ANM_STAFF = ['Cruz, Rowena','Rodriguez, Althea Nadine','Bruce, Jessica','Wells, Sydney N'];
+    const ANM_STAFF = ['Cruz, Rowena','Bruce, Jessica','Wells, Sydney N','Raymond, Joseph D','Warneke, Madison']; // v32
     const REMOVED_STAFF = ['Sala, Jose F',
         // v31: ECMO nurses removed from roster and all outputs (per Rowena)
-        'Boepple, Leslie C','Crawford, Kathy A','Houser, Stephanie A','Ninan, Aleyamma','Park, Vivian Y','Riddle, Crystal M','Rosben Varghese, Bincy','Stapleton-Greig, Joshua D'];
+        'Boepple, Leslie C','Crawford, Kathy A','Houser, Stephanie A','Ninan, Aleyamma','Park, Vivian Y','Riddle, Crystal M','Rosben Varghese, Bincy','Stapleton-Greig, Joshua D',
+        'Horstmann, Hannah G', // v32: ECMO CN
+        'Harper, Bethany A','Alfred, Ajuma', // v32: resigned
+        'Rodriguez, Althea Nadine']; // v32: no longer an ANM
     const CORRECTED_STAFF_NAMES = [
         'Wells, Sydney N','Chen, Maggie M','Jimenez, Krystal','Quinones, Quiryat J','Heath, Logan',
         'Makinde, Andrew','Pfaff, Lillian G','Siebert, Reagan','Aldape, Abigail C','Alfred, Ajuma',
         'Avalos, Jorge','Bird, David','Botkin, Samantha','Callicoatte, Adina','Davis, Sydney',
         'Harty, Kelly','Nguyen, Thiara','Roberts, Ariana',
         // v31.1: moved to days / renamed / name variant in MyTime
-        'Lee, Haeun','Ortiz, Karina','Peak, Elyssa','Nguyen, Thiara T'
+        'Lee, Haeun','Ortiz, Karina','Peak, Elyssa','Nguyen, Thiara T',
+        // v32: Rowena's roster corrections (Oct 30, 2026)
+        'Dismuke, Khadeja','Bogard, Brianna','Chairez, Odalys Y','DeLuna, Travis','HAMDAN, SAMMAR','Hall, Amanda','Joy, Faith','Joya Soto, Arturo B','Kesbeh, Shroq O','Makinde, Andrew','Martinez, Samantha','Nardo, Anna','Patel, Rachel','Pfaff, Lillian G','Raven, Taiya D','Rawlins, Abbey N','Ross, Daysha','Segura, Genova','Siebert, Reagan','Smith, Joshua B','Thomas, Maya','Tran, Hung','Warneke, Shanen','VanDeKop, Jordan','Hickman, Erika','Hayes, Tyler','Heath, Logan','Crayton, Karonda','Dismuke, Brittany','Joseph, Tevin Jacob','Lias, Imani A','Wu, Nancy','Bruce, Jessica','Cruz, Rowena','Wells, Sydney N','Raymond, Joseph D','Warneke, Madison'
     ];
     const normalizeStaffName = name => String(name || '').trim().replace(/\s+/g, ' ').toUpperCase();
     const findRosterRecord = name => Object.entries(STAFF_ROSTER_LOOKUP).find(([key]) => normalizeStaffName(key) === normalizeStaffName(name))?.[1];
-    const EXCLUDED_STAFF = ["Boepple, Leslie C","Crawford, Kathy A","Houser, Stephanie A","Ninan, Aleyamma","Park, Vivian Y","Riddle, Crystal M","Rosben Varghese, Bincy","Stapleton-Greig, Joshua D"];
+    const EXCLUDED_STAFF = ["Boepple, Leslie C","Crawford, Kathy A","Houser, Stephanie A","Ninan, Aleyamma","Park, Vivian Y","Riddle, Crystal M","Rosben Varghese, Bincy","Stapleton-Greig, Joshua D","Horstmann, Hannah G"];
 
     let rawData = null;
     let staffRoster = [];
@@ -906,9 +889,26 @@
     let protectedStaff = [];
     const CN_MAX = 4;
     let scheduleStatus = 'open';
-    let requirements = { RN_WD: 15, RN_WE: 15, PCT_WD: 2, PCT_WE: 1, CN: 2, EB: 2, ES: 2,
+    // v32: no offset / dressing-day rules — every day uses the same 1-RN band (min..min+1) on BEDSIDE RNs.
+    // CN: minimum 2, no maximum. PCT: minimum 1, maximum 2 (US counted separately).
+    // MID: weekdays 2–3, weekends exactly 1.
+    let requirements = { RN_WD: 15, RN_WE: 15, PCT_WD: 1, PCT_WE: 1, CN: 2, EB: 2, ES: 2,
                           CAP_WD: 1, CAP_THU: 1, CAP_SAT: 1, CAP_SUN: 1,
-                          MID_WD: 2, MID_WE: 1 }; // MID min: weekday=2, weekend=1
+                          MID_WD: 2, MID_WE: 1 };
+    const PCT_MAX = 2;
+    // v32: Rowena's color code
+    const COLORS = { PTO:'#A9D18E', CLASS:'#E53935', RO:'#F8C8DC', MOVED:'#4BA3D3', HOLIDAY:'#D9D2E9' };
+    function isHoliday(dateStr) { // Thanksgiving + Black Friday, Christmas Eve/Day, New Year's Eve/Day
+        const d = parseDate(dateStr), m = d.getMonth(), day = d.getDate();
+        if (m === 10) { const first = new Date(d.getFullYear(), 10, 1).getDay(); const thanks = 1 + ((4 - first + 7) % 7) + 21; return day === thanks || day === thanks + 1; }
+        if (m === 11) return day === 24 || day === 25 || day === 31;
+        if (m === 0) return day === 1;
+        return false;
+    }
+    const MID_MAX_WD = 3, MID_MAX_WE = 1;
+    const MID_ROTATORS = ['Warneke, Shanen','Hayes, Tyler','Siebert, Reagan','Heath, Logan']; // v32: rotate between home shift and MID
+    function getMidMin(dateStr) { return isWeekendDate(dateStr) ? requirements.MID_WE : requirements.MID_WD; }
+    function getMidMax(dateStr) { return isWeekendDate(dateStr) ? MID_MAX_WE : MID_MAX_WD; }
 
     // CRITICAL: Dates in MyTime format are 'M/D/ YYYY' (single-digit months/days, space before year)
     // JavaScript's .sort() sorts these ALPHABETICALLY which is WRONG:
@@ -932,13 +932,7 @@
     function getRnMin(dateStr, mode = 'day')  { return isWeekendForMode(dateStr, mode) ? requirements.RN_WE  : requirements.RN_WD;  }
     function getPctMin(dateStr, mode = 'day') { return isWeekendForMode(dateStr, mode) ? requirements.PCT_WE : requirements.PCT_WD; }
     function getRnMax(dateStr, mode = 'day') {
-        const dow = parseDate(dateStr).getDay();
-        const HARD_CEILING = 4;
-        const minimum = getRnMin(dateStr, mode);
-        if (dow === 6) return minimum + Math.min(requirements.CAP_SAT, HARD_CEILING);
-        if (dow === 0) return minimum + Math.min(requirements.CAP_SUN, HARD_CEILING);
-        if (dow === 4) return minimum + Math.min(requirements.CAP_THU, HARD_CEILING);
-        return minimum + Math.min(requirements.CAP_WD, HARD_CEILING);
+        return getRnMin(dateStr, mode) + 1; // v32: never more than a 1-RN difference
     }
     function updateCapDisplays() {
         const wd  = document.getElementById('rnWdMaxDisplay');  if (wd)  wd.textContent  = requirements.RN_WD + requirements.CAP_WD;
@@ -1095,7 +1089,8 @@
 
     function isClinicalRawToken(rawToken, isANM) {
         const code = String(rawToken || '').trim().toUpperCase();
-        if (isANM) return /^6T19Q\s*X$/.test(code) || /^6:45\s*AM\s*X$/.test(code);
+        // v32: day ANM charge = 6T19Q x / 6:45 AM x; night ANM charge = 18T7Q x / 6:45 PM x
+        if (isANM) return /^6T19Q\s*X$/.test(code) || /^6:45\s*AM\s*X$/.test(code) || /^18T7Q\s*X$/.test(code) || /^6:45\s*PM\s*X$/.test(code);
         return ['7A', '7P', 'MID'].includes(parseClinicalShiftCode(code));
     }
 
@@ -1104,7 +1099,10 @@
         if (!code) return '';
         const auxiliary = parseAuxiliaryCode(code);
         if (auxiliary) return auxiliary;
-        if (isANM) return isClinicalRawToken(code, true) ? 'ANM_CN' : 'ANM_ADMIN';
+        if (isANM) {
+            if (!isClinicalRawToken(code, true)) return 'ANM_ADMIN'; // office time (8:00 AM, 1:00 PM, 4:00 AM, 7:00 PM...) never counts
+            return (/^18T7Q/.test(code) || /PM/.test(code)) ? 'ANM_CN_N' : 'ANM_CN';
+        }
         return parseClinicalShiftCode(code);
     }
 
@@ -1194,6 +1192,8 @@
 
             const shifts = {};
             const rawShifts = {};
+            // v32: AMGR in MyTime = ANM — decided BEFORE reading codes
+            if (String(job || '').toUpperCase().includes('AMGR') && !ANM_STAFF.includes(name)) ANM_STAFF.push(name);
             const isANM = ANM_STAFF.includes(name);
 
             // CRITICAL FIX v28: Bounded offset search
@@ -1247,7 +1247,7 @@
             // v31.1: shift fallback from detectShiftType returns 'day'/'night' — normalize to AM/PM
             const normShift = staffShift === 'day' ? 'AM' : staffShift === 'night' ? 'PM' : staffShift;
             staffRoster.push({
-                name, job: staffRole === 'AMGR' ? 'RN' : staffRole,
+                name, job: staffRole === 'AMGR' ? 'RN' : (staffRole === 'HUC' ? 'US' : staffRole), // v32: HUC is now US everywhere
                 type: staffType, skill: staffSkill, shift: normShift, shifts, rawShifts
             });
         }
@@ -1356,7 +1356,8 @@
             Total: staff.length,
             ANM: staff.filter(s => ANM_STAFF.includes(s.name)).length,
             RN: staff.filter(s => s.job === 'RN').length,
-            'PCT/HUC': staff.filter(s => s.job === 'PCT' || s.job === 'HUC').length,
+            'PCT': staff.filter(s => s.job === 'PCT').length,
+            'US': staff.filter(s => s.job === 'US').length,
             FT: staff.filter(s => s.type === 'FT').length,
             PT: staff.filter(s => s.type === 'PT').length,
             PRN: staff.filter(s => s.type === 'PRN').length,
@@ -1756,18 +1757,10 @@
         const COUNTING_DAY = ['7A','MID','ANM_CN'];
         const gapsByDate = [];
         dates.forEach(date => {
-            let rnCount=0, pctCount=0, chgCount=0, ebCount=0, esCount=0;
-            staffRoster.forEach(staff => {
-                const shift = staff.shifts[date];
-                if (isClinicalDayCoverage(shift)) {
-                    if (shift === 'ANM_CN') { rnCount++; chgCount++; }
-                    else if (staff.job?.includes('RN')) { rnCount++; if (staff.skill?.includes('CN')) chgCount++; if (staff.skill?.includes('EB')) ebCount++; if (staff.skill?.includes('ES')) esCount++; }
-                    if (staff.job?.includes('PCT')) pctCount++;
-                }
-            });
+            const c = countCoverage(date, st => st.shifts?.[date], 'day'); // v32 shared count
+            let rnCount = c.bedside, pctCount = c.pct, chgCount = c.cnQualified, ebCount = c.eb, esCount = c.es;
             const rnMin  = getRnMin(date);
             const pctMin = getPctMin(date);
-            chgCount = Math.min(chgCount, CN_MAX); // excess CN-qualified nurses remain regular bedside RNs
             const rnGap=rnMin-rnCount, pctGap=pctMin-pctCount, chgGap=requirements.CN-chgCount, ebGap=requirements.EB-ebCount, esGap=requirements.ES-esCount;
             const hasGaps = rnGap>0||pctGap>0||chgGap>0||ebGap>0||esGap>0;
             if (hasGaps) gapsByDate.push({ date, rnGap:Math.max(0,rnGap), pctGap:Math.max(0,pctGap), chgGap:Math.max(0,chgGap), ebGap:Math.max(0,ebGap), esGap:Math.max(0,esGap), totalGaps:Math.max(0,rnGap)+Math.max(0,pctGap)+Math.max(0,chgGap)+Math.max(0,ebGap)+Math.max(0,esGap) });
@@ -1841,6 +1834,7 @@
     function balanceDayShift() {
         // Day counting includes 7A and MID (MIDSHIFT staff contribute to day coverage)
         const COUNTING_DAY = ['7A', 'MID'];
+        const BAL_MODE = 'day';
         const simulation = {};
         const moveList = [];
         const dates = Object.keys(rawData.dates.reduce((acc,d) => { acc[d.date]=true; return acc; }, {})).sort(chronoSort); // FIXED: chronological not alphabetical
@@ -1872,14 +1866,11 @@
             // Live RN counter — tracks total RNs assigned on this date as we go.
             // CN/EB/ES candidates are all RNs, so they ALL count toward the daily cap.
             // This prevents +5 situations where filling 4 different sub-types all add RNs.
-            let liveRN = Object.values(simulation).filter(st => {
-                const sh = st[date]; return (sh === '7A' || sh === 'MID' || sh === 'ANM_CN') && st.job === 'RN';
-            }).length;
 
             // Priority order: PCT first (hardest to fill), then CN, then EB/ES, then RN
             const fillOrder = ['PCT', 'CN', 'EB', 'ES', 'RN'];
             fillOrder.forEach(type => {
-                const needed = gaps[type];
+                const needed = getGaps(date, simulation, COUNTING_DAY)[type];
                 if (!needed || needed <= 0) return;
 
                 const candidates = staffRoster
@@ -1889,11 +1880,13 @@
                         if (type==='CN')  return s.skill?.includes('CN');
                         if (type==='EB')  return s.skill?.includes('EB');
                         if (type==='ES')  return s.skill?.includes('ES');
-                        if (type==='PCT') return s.job==='PCT' || s.job==='HUC';
+                        if (type==='PCT') return s.job==='PCT'; // v32: US never fills a PCT need
                         return s.job==='RN';
                     })
                     .map(s => ({ ...s, priority: getPriorityCategory(s, simulation, null) }))
                     .sort((a,b) => {
+                        // v32: weekend gaps go to whoever has the FEWEST weekend shifts so far (Rowena's memo)
+                        if (isWeekendForMode(date, BAL_MODE)) { const wa = weekendCountFor(a.name, simulation, BAL_MODE), wb = weekendCountFor(b.name, simulation, BAL_MODE); if (wa !== wb) return wa - wb; }
                         if (a.priority.tier !== b.priority.tier) return a.priority.tier - b.priority.tier;
                         if (a.type==='FT' && b.type!=='FT') return -1;
                         if (a.type!=='FT' && b.type==='FT') return 1;
@@ -1903,8 +1896,10 @@
                 let filled = 0;
                 candidates.forEach(c => {
                     if (filled >= needed) return;
-                    // Hard RN cap: if staff is an RN (any sub-type) and we're at max, stop
-                    if (c.job === 'RN' && liveRN >= rnMax) return;
+                    // v32: only a plain RN fill respects the bedside band; CN/EB/ES/PCT minimums come first
+                    // (the leveling pass afterwards moves extra RNs to thinner days)
+                    if (type === 'RN' && getGaps(date, simulation, COUNTING_DAY)._rnCurrent >= rnMax) return;
+                    if (assignCode(c) === 'MID' && getGaps(date, simulation, COUNTING_DAY)._midCurrent >= getMidMax(date)) return;
                     const originalValue = simulation[c.name][date];
                     const wasBlank = !originalValue || String(originalValue).trim() === '';
                     if (!wasBlank && !canAddMove(c.name, c.priority.category)) return;
@@ -1912,7 +1907,6 @@
                     simulation[c.name][date] = code;
                     trackMove(c.name, c.priority.category, date, code, originalValue);
                     moveList.push({ name:c.name, date, shift:code, reason:`Fill ${type} gap`, type:c.type, job:c.job, skill:c.skill });
-                    if (c.job === 'RN') liveRN++; // update live counter immediately
                     filled++; moves++;
                 });
             });
@@ -1925,20 +1919,16 @@
 
             if (midActual < midRequired) {
                 const midNeeded = midRequired - midActual;
-                const rnMaxNow = getRnMax(date);
-                const currentRNCount = Object.values(simulation).filter(st => {
-                    const sh = st[date]; return (sh === '7A' || sh === 'MID' || sh === 'ANM_CN') && st.job === 'RN';
-                }).length;
 
                 // Candidates: permanent MIDSHIFT staff first, then rotating AM staff
                 const midCandidates = staffRoster
-                    .filter(s => (s.shift === 'MIDSHIFT' || s.shift === 'AM') &&
+                    .filter(s => (s.shift === 'MIDSHIFT' || isMidRotatorOn(s, date, dates)) && // v32: only permanent mids + rotators in their mid half
                         s.type !== 'PRN' && s.job === 'RN' &&
                         !ANM_STAFF.includes(s.name) && !EXCLUDED_STAFF.includes(s.name) &&
                         !protectedStaff.includes(s.name))
                     .filter(s => {
                         const cur = simulation[s.name][date];
-                        return (!cur || cur.trim() === '') && canAdd(s, date, simulation, COUNTING_DAY, 'day');
+                        return (!cur || cur.trim() === '') && canAdd({ ...s, shift: 'MIDSHIFT' }, date, simulation, COUNTING_DAY, 'day');
                     })
                     .map(s => ({ ...s, priority: getPriorityCategory(s, simulation, null) }))
                     // Permanent MIDSHIFT staff first, then AM rotating staff
@@ -1951,7 +1941,7 @@
                 let filled = 0;
                 for (const c of midCandidates) {
                     if (filled >= midNeeded) break;
-                    if (currentRNCount + filled >= rnMaxNow) break; // respect RN cap
+                    if (getGaps(date, simulation, COUNTING_DAY)._midCurrent >= getMidMax(date)) break; // v32: weekday max 3, weekend exactly 1
                     const orig = simulation[c.name][date];
                     simulation[c.name][date] = 'MID';
                     trackMove(c.name, c.priority.category, date, 'MID', orig);
@@ -1975,7 +1965,7 @@
             if (staff.type === 'PRN') return;
             if (staff.shift !== 'AM' && staff.shift !== 'MIDSHIFT') return;
             // Only enforce minimums for clinical staff (RN/PCT/HUC) — skip non-standard job codes
-            if (!staff.job?.includes('RN') && !staff.job?.includes('PCT') && staff.job !== 'HUC') return;
+            if (!staff.job?.includes('RN') && !staff.job?.includes('PCT') && staff.job !== 'US') return;
 
             const currentShifts = countEffectiveShifts(staff.name, simulation, COUNTING_DAY);
             const required = staff.type==='FT' ? 18 : (staff.type==='PT' ? 12 : 0);
@@ -2003,6 +1993,7 @@
                 // Respect RN max cap — don't add if already at max
                 const gaps = getGaps(date, simulation, COUNTING_DAY);
                 if (staff.job === 'RN' && gaps._rnCurrent >= gaps._rnMax) continue;
+                if (code === 'MID' && gaps._midCurrent >= getMidMax(date)) continue; // v32
                 const originalValue = simulation[staff.name][date];
                 simulation[staff.name][date] = code;
                 trackMove(staff.name, 'late', date, code, originalValue);
@@ -2011,10 +2002,164 @@
             }
         });
 
+        moves += levelCharge(simulation, dates, 'day', COUNTING_DAY, moveList);
+        moves += levelMidAndPct(simulation, dates, 'day', COUNTING_DAY, moveList);
         moves += levelRNBand(simulation, dates, 'day', COUNTING_DAY, moveList);
+        moves += levelCharge(simulation, dates, 'day', COUNTING_DAY, moveList);
         return { simulation, dates, moves, moveList };
     }
 
+
+
+
+    // v32: GENERIC LEVELING for MID nurses and PCTs — moves one person from a day above the
+    // maximum (or above the minimum, when another day is short) to a short day in the SAME week.
+    // Same safety rules as RN leveling: no PRN/ANM/protected, open day only, move caps,
+    // weekend & Sunday minimums kept, charge/ECMO minimums kept on the day they leave.
+    function levelGroup(simulation, dates, mode, countingCodes, moveList, opts) {
+        const isWE = d => isWeekendForMode(d, mode);
+        const isSun = d => parseDate(d).getDay() === 0;
+        const weReq = st => st.type === 'FT' ? (mode === 'day' ? 5 : 7) : (st.type === 'PT' ? 4 : 0);
+        const weekOf = d => Math.floor(dates.indexOf(d) / 7);
+        const origCache = {};
+        const orig = (st, d) => { if (!origCache[st.name]) origCache[st.name] = translateShifts(st.shifts || {}, mode); return origCache[st.name][d] || ''; };
+        const worked = (name, pred) => dates.filter(d => pred(d) && (countingCodes.includes(simulation[name][d]) || (mode === 'day' && simulation[name][d] === 'MID'))).length;
+        let n = 0, guard = 0, progress = true;
+        while (progress && guard++ < 300) {
+            progress = false;
+            const cnt = {}; dates.forEach(d => { cnt[d] = opts.count(d); });
+            const pairs = [];
+            dates.forEach(src => dates.forEach(t => {
+                if (src === t || weekOf(src) !== weekOf(t)) return;
+                const over = cnt[src] > opts.max(src), short = cnt[t] < opts.min(t);
+                if ((over && cnt[t] < opts.max(t)) || (short && cnt[src] - 1 >= opts.min(src) && cnt[src] - cnt[t] >= 2))
+                    pairs.push({ src, t, score: (over ? 10 : 0) + (short ? 10 : 0) + (cnt[src] - cnt[t]) });
+            }));
+            pairs.sort((a, b) => b.score - a.score);
+            outer:
+            for (const { src, t } of pairs) {
+                const before = getGaps(src, simulation, countingCodes);
+                const movers = staffRoster.filter(st => opts.eligible(st, src, t) && simulation[st.name]?.[src] === opts.code(st)
+                        && st.type !== 'PRN' && !ANM_STAFF.includes(st.name) && !EXCLUDED_STAFF.includes(st.name) && !protectedStaff.includes(st.name))
+                    .map(st => ({ st, pr: getPriorityCategory(st, simulation, null), selfSched: orig(st, src) === opts.code(st) }))
+                    .sort((a, b) => (a.selfSched - b.selfSched) || (a.pr.tier - b.pr.tier));
+                for (const m of movers) {
+                    const name = m.st.name, code = opts.code(m.st);
+                    const tv = simulation[name][t];
+                    if (tv && String(tv).trim() !== '') continue;
+                    if (m.selfSched && !canAddMove(name, m.pr.category)) continue;
+                    simulation[name][src] = '';
+                    const after = getGaps(src, simulation, countingCodes);
+                    const ok = after.CN <= before.CN && after.EB <= before.EB && after.ES <= before.ES
+                        && !(isWE(src) && !isWE(t) && worked(name, isWE) < weReq(m.st))
+                        && !(mode === 'day' && isSun(src) && !isSun(t) && (m.st.type === 'FT' || m.st.type === 'PT') && worked(name, isSun) < 2)
+                        && canAdd(opts.asStaff ? opts.asStaff(m.st) : m.st, t, simulation, countingCodes, mode);
+                    if (!ok) { simulation[name][src] = code; continue; }
+                    simulation[name][t] = code;
+                    if (m.selfSched) {
+                        trackMove(name, m.pr.category, t, code, code);
+                        moveList.push({ name, date: t, shift: code, from: src, reason: `${opts.label}: moved from ${src} (${cnt[src]}) to ${t} (${cnt[t]})`, type: m.st.type, job: m.st.job, skill: m.st.skill });
+                    } else {
+                        const entry = moveList.find(e => e.name === name && e.date === src);
+                        if (entry) { entry.date = t; entry.reason += ` (relocated to ${t}: ${opts.label})`; }
+                    }
+                    n++; progress = true; break outer;
+                }
+            }
+        }
+        if (n) console.log(`[v32] ${mode} ${opts.label}: ${n} move(s)`);
+        return n;
+    }
+    function levelMidAndPct(simulation, dates, mode, countingCodes, moveList) {
+        let n = 0;
+        if (mode === 'day') n += levelGroup(simulation, dates, mode, countingCodes, moveList, {
+            label: 'Level MID count',
+            count: d => covFromSim(d, simulation, 'day').mid,
+            min: d => getMidMin(d), max: d => getMidMax(d),
+            code: () => 'MID',
+            eligible: (st, src, t) => st.job === 'RN' && (st.shift === 'MIDSHIFT' || isMidRotatorOn(st, t, dates)),
+            asStaff: st => ({ ...st, shift: 'MIDSHIFT' })
+        });
+        n += levelGroup(simulation, dates, mode, countingCodes, moveList, {
+            label: 'Level PCT count',
+            count: d => covFromSim(d, simulation, mode).pct,
+            min: d => getPctMin(d, mode), max: () => PCT_MAX,
+            code: () => mode === 'day' ? '7A' : '7P',
+            eligible: st => st.job === 'PCT'
+        });
+        return n;
+    }
+
+    // v32 helpers -----------------------------------------------------------
+    function weekendCountFor(name, simulation, mode) {
+        const codes = mode === 'day' ? ['7A','MID'] : ['7P'];
+        const row = simulation[name] || {};
+        return Object.keys(row).filter(d => /\d+\/\s*\d+\/\s*\d{4}/.test(d) && isWeekendForMode(d, mode) && codes.includes(row[d])).length;
+    }
+    // A rotator (Warneke S, Hayes, Siebert, Heath) is "on mid" for the half of the 6 weeks
+    // in which they self-scheduled mid shifts.
+    function isMidRotatorOn(staff, date, dates) {
+        if (!MID_ROTATORS.some(n => normalizeStaffName(n) === normalizeStaffName(staff.name))) return false;
+        const half = d => dates.indexOf(d) < Math.ceil(dates.length / 2) ? 0 : 1;
+        const h = half(date);
+        return dates.some(d => half(d) === h && staff.shifts?.[d] === 'MID');
+    }
+
+    // v32: CHARGE NURSE PASS — every shift needs at least requirements.CN charge-qualified nurses.
+    // Moves a CN-qualified RN from a day with spare charge nurses to a short day in the SAME week.
+    function levelCharge(simulation, dates, mode, countingCodes, moveList) {
+        const code = mode === 'day' ? '7A' : '7P';
+        const isWE = d => isWeekendForMode(d, mode);
+        const isSun = d => parseDate(d).getDay() === 0;
+        const weReq = st => st.type === 'FT' ? (mode === 'day' ? 5 : 7) : (st.type === 'PT' ? 4 : 0);
+        const weekOf = d => Math.floor(dates.indexOf(d) / 7);
+        const origCache = {};
+        const orig = (st, d) => { if (!origCache[st.name]) origCache[st.name] = translateShifts(st.shifts || {}, mode); return origCache[st.name][d] || ''; };
+        const countWhere = (name, pred) => dates.filter(d => pred(d) && countingCodes.includes(simulation[name][d])).length;
+        let fixed = 0, guard = 0, progress = true;
+        while (progress && guard++ < 300) {
+            progress = false;
+            const cov = {}; dates.forEach(d => { cov[d] = covFromSim(d, simulation, mode); });
+            const shortDays = dates.filter(d => cov[d].cnQualified < requirements.CN);
+            outer:
+            for (const target of shortDays) {
+                const sources = dates.filter(d => d !== target && weekOf(d) === weekOf(target) && cov[d].cnQualified > requirements.CN)
+                    .sort((a, b) => cov[b].bedside - cov[a].bedside);
+                for (const src of sources) {
+                    const before = getGaps(src, simulation, countingCodes);
+                    const movers = staffRoster.filter(st => st.job === 'RN' && st.skill?.includes('CN') && simulation[st.name]?.[src] === code
+                            && st.type !== 'PRN' && st.shift !== 'MIDSHIFT' && !ANM_STAFF.includes(st.name)
+                            && !EXCLUDED_STAFF.includes(st.name) && !protectedStaff.includes(st.name))
+                        .map(st => ({ st, pr: getPriorityCategory(st, simulation, null), selfSched: orig(st, src) === code }))
+                        .sort((a, b) => (a.selfSched - b.selfSched) || (a.pr.tier - b.pr.tier));
+                    for (const m of movers) {
+                        const name = m.st.name;
+                        const tv = simulation[name][target];
+                        if (tv && String(tv).trim() !== '') continue;
+                        if (m.selfSched && !canAddMove(name, m.pr.category)) continue;
+                        simulation[name][src] = '';
+                        const after = getGaps(src, simulation, countingCodes);
+                        const ok = after.EB <= before.EB && after.ES <= before.ES
+                            && !(isWE(src) && !isWE(target) && countWhere(name, isWE) < weReq(m.st))
+                            && !(mode === 'day' && isSun(src) && !isSun(target) && countWhere(name, isSun) < 2 && m.st.type !== 'PRN')
+                            && canAdd(m.st, target, simulation, countingCodes, mode);
+                        if (!ok) { simulation[name][src] = code; continue; }
+                        simulation[name][target] = code;
+                        if (m.selfSched) {
+                            trackMove(name, m.pr.category, target, code, code);
+                            moveList.push({ name, date: target, shift: code, from: src, reason: `Charge nurse coverage: moved from ${src} to ${target}`, type: m.st.type, job: m.st.job, skill: m.st.skill });
+                        } else {
+                            const entry = moveList.find(e => e.name === name && e.date === src);
+                            if (entry) { entry.date = target; entry.reason += ` (relocated to ${target} for charge coverage)`; }
+                        }
+                        fixed++; progress = true; break outer;
+                    }
+                }
+            }
+        }
+        if (fixed) console.log(`[v32] ${mode} charge pass: ${fixed} move(s)`);
+        return fixed;
+    }
 
     // =====================================================================
     // v31: RN LEVELING PASS — keep every day inside the 15–16 band
@@ -2108,6 +2253,7 @@
 
     function balanceNightShift() {
         const COUNTING_NIGHT = ['7P'];
+        const BAL_MODE = 'night';
         const simulation = {};
         const moveList = [];
         const dates = Object.keys(rawData.dates.reduce((acc,d) => { acc[d.date]=true; return acc; }, {})).sort(chronoSort); // FIXED: chronological not alphabetical
@@ -2133,14 +2279,11 @@
             const rnMax = getRnMax(date, 'night');
 
             // Live RN counter — same logic as day shift, prevents CN/EB/ES stacking
-            let liveRN = Object.values(simulation).filter(st => {
-                const sh = st[date]; return sh === '7P' && st.job === 'RN';
-            }).length;
 
             // PCT first, then CN, EB, ES, then RN — same fill priority as day
             const fillOrder = ['PCT', 'CN', 'EB', 'ES', 'RN'];
             fillOrder.forEach(type => {
-                const needed = gaps[type];
+                const needed = getGaps(date, simulation, COUNTING_NIGHT)[type];
                 if (!needed || needed <= 0) return;
 
                 const candidates = staffRoster
@@ -2150,11 +2293,13 @@
                         if (type==='CN')  return s.skill?.includes('CN');
                         if (type==='EB')  return s.skill?.includes('EB');
                         if (type==='ES')  return s.skill?.includes('ES');
-                        if (type==='PCT') return s.job==='PCT' || s.job==='HUC';
+                        if (type==='PCT') return s.job==='PCT'; // v32: US never fills a PCT need
                         return s.job==='RN';
                     })
                     .map(s => ({ ...s, priority: getPriorityCategory(s, simulation, null) }))
                     .sort((a,b) => {
+                        // v32: weekend gaps go to whoever has the FEWEST weekend shifts so far (Rowena's memo)
+                        if (isWeekendForMode(date, BAL_MODE)) { const wa = weekendCountFor(a.name, simulation, BAL_MODE), wb = weekendCountFor(b.name, simulation, BAL_MODE); if (wa !== wb) return wa - wb; }
                         if (a.priority.tier !== b.priority.tier) return a.priority.tier - b.priority.tier;
                         if (a.type==='FT' && b.type!=='FT') return -1;
                         if (a.type!=='FT' && b.type==='FT') return 1;
@@ -2164,15 +2309,13 @@
                 let filled = 0;
                 candidates.forEach(c => {
                     if (filled >= needed) return;
-                    // Hard RN cap — same as day shift, no +5 ever
-                    if (c.job === 'RN' && liveRN >= rnMax) return;
+                    if (type === 'RN' && getGaps(date, simulation, COUNTING_NIGHT)._rnCurrent >= rnMax) return; // v32
                     const originalValue = simulation[c.name][date];
                     const wasBlank = !originalValue || String(originalValue).trim() === '';
                     if (!wasBlank && !canAddMove(c.name, c.priority.category)) return;
                     simulation[c.name][date] = '7P';
                     trackMove(c.name, c.priority.category, date, '7P', originalValue);
                     moveList.push({ name:c.name, date, shift:'7P', reason:`Fill ${type} gap`, type:c.type, job:c.job, skill:c.skill });
-                    if (c.job === 'RN') liveRN++;
                     filled++; moves++;
                 });
             });
@@ -2186,7 +2329,7 @@
             if (staff.type === 'PRN') return;
             if (staff.shift !== 'PM') return;
             // Only enforce minimums for clinical staff (RN/PCT/HUC) — skip non-standard job codes
-            if (!staff.job?.includes('RN') && !staff.job?.includes('PCT') && staff.job !== 'HUC') return;
+            if (!staff.job?.includes('RN') && !staff.job?.includes('PCT') && staff.job !== 'US') return;
 
             const currentShifts = countEffectiveShifts(staff.name, simulation, COUNTING_NIGHT);
             const required = staff.type==='FT' ? 18 : (staff.type==='PT' ? 12 : 0);
@@ -2218,7 +2361,10 @@
             }
         });
 
+        moves += levelCharge(simulation, dates, 'night', COUNTING_NIGHT, moveList);
+        moves += levelMidAndPct(simulation, dates, 'night', COUNTING_NIGHT, moveList);
         moves += levelRNBand(simulation, dates, 'night', COUNTING_NIGHT, moveList);
+        moves += levelCharge(simulation, dates, 'night', COUNTING_NIGHT, moveList);
         return { simulation, dates, moves, moveList };
     }
 
@@ -2231,6 +2377,8 @@
                 translated[date] = upper;
                 return;
             }
+            if (upper === 'ANM_CN_N') { translated[date] = mode === 'night' ? 'ANM_CN' : ''; return; } // v32: night ANM charge
+            if (upper === 'ANM_CN' && mode === 'night') { translated[date] = ''; return; }
             if (mode === 'day') {
                 if (upper === 'ANM_CN') code = 'ANM_CN';
                 else if (upper.includes('6T19')||upper.includes('7A')||upper.includes('6W18')) code = '7A';
@@ -2255,56 +2403,64 @@
 
 
 
-    function getGaps(date, simulation, countingCodes) {
-        let rn=0, pct=0, chg=0, eb=0, es=0, mid=0;
-        const isDay = countingCodes.includes('7A') || countingCodes.includes('MID');
-        Object.values(simulation).forEach(staff => {
-            if (EXCLUDED_STAFF.includes(staff.name)) return; // excluded staff don't affect gap calc
-            const shift = staff[date];
-            if (isDay && shift === 'ANM_CN') { rn++; chg++; return; }
-            // MID counts toward day coverage only — never toward night
-            const counts = countingCodes.includes(shift) || (isDay && shift === 'MID');
-            if (!counts) return;
-            if (staff.job==='RN') { rn++; if (staff.skill?.includes('CN')) chg++; if (staff.skill?.includes('EB')) eb++; if (staff.skill?.includes('ES')) es++; }
-            else if (staff.job==='PCT' || staff.job==='HUC') { pct++; }
-            if (shift === 'MID') mid++;
+
+    // =====================================================================
+    // v32: ONE shared coverage count used by balancing, screens and every export,
+    // so totals can never disagree with each other or with the rows shown.
+    //   staffRN   = staff RNs working (7A + MID on days, 7P on nights) — matches the rows
+    //   anmCharge = ANM working as charge (6t19q x days / 18t7q x nights)
+    //   bedside   = RNs with a patient assignment. If no ANM is charge, one staff RN
+    //               is charge and takes no patients, so bedside = staffRN - 1 (Rowena's memo).
+    //   The 15–16 balancing band is measured on BEDSIDE RNs.
+    // =====================================================================
+    function countCoverage(date, getCode, mode) {
+        const isDay = mode === 'day';
+        let staffRN = 0, anmCharge = 0, cnQualified = 0, eb = 0, es = 0, pct = 0, us = 0, mid = 0;
+        staffRoster.forEach(st => {
+            if (EXCLUDED_STAFF.includes(st.name)) return;
+            let code = getCode(st) || '';
+            if (code === 'ANM_CN_N') code = isDay ? '' : 'ANM_CN';
+            if (code === 'ANM_CN') { if (ANM_STAFF.includes(st.name)) { anmCharge++; cnQualified++; } return; }
+            if (ANM_STAFF.includes(st.name)) return; // ANM office time never counts
+            const works = isDay ? (code === '7A' || code === 'MID') : code === '7P';
+            if (!works) return;
+            if (st.job === 'RN') {
+                staffRN++;
+                if (st.skill?.includes('CN')) cnQualified++;
+                if (st.skill?.includes('EB')) eb++;
+                if (st.skill?.includes('ES')) es++;
+                if (code === 'MID') mid++;
+            } else if (st.job === 'PCT') pct++;
+            else if (st.job === 'US' || st.job === 'HUC') us++;
         });
-        chg = Math.min(chg, CN_MAX); // allocate no more than four nurses to the CN role
+        const staffCharge = (anmCharge === 0 && staffRN > 0) ? 1 : 0;
+        const bedside = staffRN - staffCharge;
+        return { staffRN, anmCharge, staffCharge, bedside, rn: bedside, cnQualified, cn: cnQualified, chg: cnQualified, eb, es, pct, us, mid };
+    }
+    const covFromSim = (date, simulation, mode) => countCoverage(date, st => simulation?.[st.name]?.[date], mode);
+
+    function getGaps(date, simulation, countingCodes) {
+        const isDay = countingCodes.includes('7A') || countingCodes.includes('MID');
         const mode = isDay ? 'day' : 'night';
+        const c = covFromSim(date, simulation, mode);
         const rnMin  = getRnMin(date, mode);
         const pctMin = getPctMin(date, mode);
         const rnMax  = getRnMax(date, mode);
-        const midMin = isWeekendDate(date) ? requirements.MID_WE : requirements.MID_WD;
+        const midMin = isDay ? (isWeekendDate(date) ? requirements.MID_WE : requirements.MID_WD) : 0;
         return {
-            RN:  rn  >= rnMax  ? 0 : Math.max(0, rnMin  - rn),
-            PCT: Math.max(0, pctMin - pct),
-            CN:  Math.max(0, requirements.CN - chg),
-            EB:  Math.max(0, requirements.EB - eb),
-            ES:  Math.max(0, requirements.ES - es),
-            MID: Math.max(0, midMin - mid),
-            _rnCurrent: rn, _rnMax: rnMax, _midCurrent: mid, _midMin: midMin
+            RN:  c.bedside >= rnMax ? 0 : Math.max(0, rnMin - c.bedside),
+            PCT: Math.max(0, pctMin - c.pct),
+            CN:  Math.max(0, requirements.CN - c.cnQualified),
+            EB:  Math.max(0, requirements.EB - c.eb),
+            ES:  Math.max(0, requirements.ES - c.es),
+            MID: Math.max(0, midMin - c.mid),
+            _rnCurrent: c.bedside, _rnMax: rnMax, _midCurrent: c.mid, _midMin: midMin, _cov: c
         };
     }
 
     function getDailyClinicalTotals(date, simulation, mode) {
-        const isDay = mode === 'day';
-        let rn = 0, pct = 0, cnQualified = 0, eb = 0, es = 0, mid = 0;
-        Object.values(simulation).forEach(staff => {
-            if (EXCLUDED_STAFF.includes(staff.name)) return;
-            const shift = staff[date];
-            const counts = isDay ? ['7A','MID','ANM_CN'].includes(shift) : shift === '7P';
-            if (!counts) return;
-            if (shift === 'ANM_CN') { rn++; cnQualified++; return; }
-            if (staff.job === 'RN') {
-                rn++;
-                if (staff.skill?.includes('CN')) cnQualified++;
-                if (staff.skill?.includes('EB')) eb++;
-                if (staff.skill?.includes('ES')) es++;
-            }
-            if (staff.job === 'PCT' || staff.job === 'HUC') pct++;
-            if (shift === 'MID') mid++;
-        });
-        return { rn, pct, cn: Math.min(cnQualified, CN_MAX), cnQualified, eb, es, mid };
+        const c = covFromSim(date, simulation, mode);
+        return { rn: c.bedside, staffRN: c.staffRN, charge: c.anmCharge ? 'ANM' : (c.staffCharge ? 'Staff −1' : '—'), pct: c.pct, us: c.us, cn: c.cnQualified, cnQualified: c.cnQualified, eb: c.eb, es: c.es, mid: c.mid };
     }
 
     function coverageStatusStyle(value, minimum, maximum = null) {
@@ -2509,7 +2665,7 @@
                     const amount = getGaps(date, result.simulation, countingCodes)[role] || 0;
                     if (amount > 0) { affected.push(date); positions += amount; }
                 });
-                if (affected.length) summaries.push({ shift: label, role: role === 'PCT' ? 'PCT/HUC' : role, affected, positions });
+                if (affected.length) summaries.push({ shift: label, role: role === 'PCT' ? 'PCT' : role, affected, positions });
             });
         };
         collect('Day', balancedResults.day, ['7A', 'MID', 'ANM_CN'], 'day');
@@ -2644,9 +2800,12 @@
             return `<td style="${coverageStatusStyle(item[key], min, maximum)}text-align:center;min-width:52px;">${item[key]}</td>`;
         }).join('')}</tr>`;
         const totalsTable = `<div style="overflow-x:auto;margin-top:12px;"><table class="staff-table"><thead><tr><th style="position:sticky;left:0;z-index:1;">Daily total</th>${dates.map(d=>`<th style="min-width:52px;text-align:center;">${parseDate(d).toLocaleDateString('en-US',{month:'numeric',day:'numeric'})}</th>`).join('')}</tr></thead><tbody>
-            ${totalRow('Total RN','rn',d=>getRnMin(d,mode),null)}
-            ${totalRow('Assigned CN','cn',requirements.CN,CN_MAX)}
+            <tr><td style="position:sticky;left:0;background:#edf2f7;font-weight:700;">Staff RNs</td>${daily.map(i=>`<td style="text-align:center;">${i.staffRN}</td>`).join('')}</tr>
+            <tr><td style="position:sticky;left:0;background:#edf2f7;font-weight:700;">Charge</td>${daily.map(i=>`<td style="text-align:center;font-size:11px;">${i.charge}</td>`).join('')}</tr>
+            ${totalRow('Bedside RNs','rn',d=>getRnMin(d,mode),null)}
+            ${totalRow('CN-qualified','cn',requirements.CN,null)}
             ${totalRow('Total ES','es',requirements.ES,null)}
+            ${totalRow('Total PCT','pct',d=>getPctMin(d,mode),PCT_MAX)}
         </tbody></table><div style="font-size:11px;color:#718096;margin-top:6px;">🟩 Meets minimum &nbsp; 🟦 Above minimum &nbsp; 🟥 Below minimum</div></div>`;
         return `<div class="alert ${complete?'alert-success':'alert-warning'}"><strong>${complete?'✅':'⚠️'} ${title} ${complete?'Fully Balanced':'Partially Balanced'}</strong><br>${moves} shifts added • ${metDays}/${dates.length} days meet all enabled minimums</div>
         <div class="stats-grid">
@@ -2688,20 +2847,9 @@
     // ─── Coverage tally rows (appended at bottom of sheet) ──────────────────
     function buildCoverageTally(dates, sim, counting, isDay, requirements) {
         const cov = dates.map(date => {
-            let rn=0,pct=0,chg=0,eb=0,es=0,mid=0;
-            staffRoster.forEach(s => {
-                if (EXCLUDED_STAFF.includes(s.name)) return;
-                const sh = sim[s.name] ? sim[s.name][date] : '';
-                const counts = counting.includes(sh) || (isDay && sh === 'MID');
-                if (!counts) return;
-                if (sh === 'ANM_CN') { rn++; chg++; }
-                else if (s.job==='RN') { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
-                if (s.job==='PCT' || s.job==='HUC') pct++;
-                if (sh === 'MID') mid++;
-            });
+            const { rn, pct, chg, eb, es, mid } = covFromSim(date, sim, isDay ? 'day' : 'night'); // v32 shared count
             const dow = parseDate(date).getDay();
             const isWE = isDay ? (dow===0||dow===6) : (dow===5||dow===6||dow===0);
-            chg = Math.min(chg, CN_MAX);
             return { rn, pct, chg, eb, es, mid,
                 rnMin:  isWE ? requirements.RN_WE  : requirements.RN_WD,
                 pctMin: isWE ? requirements.PCT_WE : requirements.PCT_WD,
@@ -2716,8 +2864,8 @@
             ['RN +/-',               '',                  '','', ...cov.map(c=>c.rn-c.rnMin)],
             ['MID Count',            requirements.MID_WD, '','', ...cov.map(c=>c.mid)],
             ['MID +/-',              '',                  '','', ...cov.map(c=>c.mid-c.midMin)],
-            ['PCT/HUC Count',        requirements.PCT_WD, '','', ...cov.map(c=>c.pct)],
-            ['PCT/HUC +/-',          '',                  '','', ...cov.map(c=>c.pct-c.pctMin)],
+            ['PCT Count',        requirements.PCT_WD, '','', ...cov.map(c=>c.pct)],
+            ['PCT +/-',          '',                  '','', ...cov.map(c=>c.pct-c.pctMin)],
             ['Charge RN',            requirements.CN,     '','', ...cov.map(c=>c.chg)],
             ['Charge +/-',           '',                  '','', ...cov.map(c=>c.chg-requirements.CN)],
             ['ECMO Bedside (EB)',    requirements.EB,     '','', ...cov.map(c=>c.eb)],
@@ -2815,7 +2963,7 @@
 
 
             // ── HUC sheet (all HUCs — both AM and PM, using simulation) ──
-            const allHUCs = staffRoster.filter(s => s.job === 'HUC' && !EXCLUDED_STAFF.includes(s.name));
+            const allHUCs = staffRoster.filter(s => s.job === 'US' && !EXCLUDED_STAFF.includes(s.name));
             const dayHucData = [
                 ['Employee', 'Type', 'Shift', ...dates.map(fmtDow)],
                 ['', '', '',                  ...dates.map(fmtDate)],
@@ -2823,14 +2971,14 @@
                     const sd = sim[s.name] || {};
                     return [s.name, s.type, s.shift, ...dates.map(d => sd[d] || '')];
                 }),
-                ["TOTAL AM HUC's", '', '', ...dates.map(d =>
+                ["TOTAL AM US", '', '', ...dates.map(d =>
                     allHUCs.filter(s => ['7A','MID'].includes(sim[s.name]?.[d])).length || ''
                 )],
-                ["TOTAL PM HUC's", '', '', ...dates.map(d =>
+                ["TOTAL PM US", '', '', ...dates.map(d =>
                     allHUCs.filter(s => sim[s.name]?.[d] === '7P').length || ''
                 )],
             ];
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dayHucData), 'HUC');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dayHucData), 'US');
 
                         XLSX.writeFile(wb, 'CVICU_Day_Balanced_Schedule.xlsx');
         } catch(e) { alert('Day schedule download failed: ' + e.message); }
@@ -2918,7 +3066,7 @@
 
 
             // ── HUC sheet (PM HUCs only, using simulation) ──
-            const nightHUCs = staffRoster.filter(s => s.job === 'HUC' && s.shift === 'PM' && !EXCLUDED_STAFF.includes(s.name));
+            const nightHUCs = staffRoster.filter(s => s.job === 'US' && s.shift === 'PM' && !EXCLUDED_STAFF.includes(s.name));
             const nightHucData = [
                 ['Employee', 'Job', 'Status', 'Role', ...dates.map(fmtDow)],
                 ['', '', '', '',                       ...dates.map(fmtDate)],
@@ -2926,11 +3074,11 @@
                     const sd = sim[s.name] || {};
                     return [s.name, 'US', s.type, '', ...dates.map(d => sd[d] || '')];
                 }),
-                ['Total HUC (Minimum)', '', '', '', ...dates.map(d =>
+                ['Total US', '', '', '', ...dates.map(d =>
                     nightHUCs.filter(s => sim[s.name]?.[d] === '7P').length || ''
                 )],
             ];
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(nightHucData), 'HUC');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(nightHucData), 'US');
 
                         XLSX.writeFile(wb, 'CVICU_Night_Balanced_Schedule.xlsx');
         } catch(e) { alert('Night schedule download failed: ' + e.message); }
@@ -2950,15 +3098,7 @@
             let weOverCount=0, weUnderCount=0, weOkCount=0;
 
             dates.forEach(date => {
-                let rn=0,pct=0,mid=0;
-                staffRoster.forEach(s => {
-                    if (EXCLUDED_STAFF.includes(s.name)) return;
-                    const sh = simulation[s.name]?.[date] || '';
-                    if (!counting.includes(sh) && !(isDay && sh==='MID')) return;
-                    if (sh === 'ANM_CN' || s.job==='RN') rn++;
-                    if (s.job==='PCT'||s.job==='HUC') pct++;
-                    if (sh==='MID') mid++;
-                });
+                const { rn, pct, mid } = covFromSim(date, simulation, isDay ? 'day' : 'night'); // v32 shared count
                 const dow = parseDate(date).getDay();
                 const isWE = isDay ? (dow===0||dow===6) : (dow===5||dow===6||dow===0);
                 const rnMin = isWE ? requirements.RN_WE : requirements.RN_WD;
@@ -3046,7 +3186,7 @@
                     <td style="text-align:right;padding:4px;"><span style="background:${capGrade.bg};color:${capGrade.c};padding:2px 8px;border-radius:4px;font-weight:700;">${capGrade.g}</span></td>
                 </tr>
                 <tr style="border-bottom:1px solid #e2e8f0;">
-                    <td style="padding:6px 4px;">PCT/HUC Coverage Met</td>
+                    <td style="padding:6px 4px;">PCT Coverage Met</td>
                     <td style="text-align:right;padding:6px 4px;">${s.daysMetPCT}/${s.totalDays}</td>
                     <td style="text-align:right;padding:4px;"><span style="background:${pctGrade.bg};color:${pctGrade.c};padding:2px 8px;border-radius:4px;font-weight:700;">${pctGrade.g}</span></td>
                 </tr>
@@ -3084,14 +3224,15 @@
             });
         });
 
-        const cellStyle = (val, name, date, isANM) => {
+        const cellStyle = (val, name, date, isANM, movedSet) => {
             const v = String(val||'').toUpperCase().trim();
             let bg = '';
-            if (v === 'R/O' || v === 'RO' || v.startsWith('R ')) bg = '#7B2D8B'; // purple
-            else if (v === 'PTO' || v === 'VAC') bg = '#0097A7'; // teal
-            else if (v === 'ADMIN' || v === 'PAYRO') bg = '#C62828'; // red
-            else if (addedDates[name + '|' + date]) bg = '#E91E8C'; // pink = moved/added
-            const color = bg ? 'white' : '#2d3748';
+            let color = '#2d3748';
+            if ((movedSet || addedDates)[name + '|' + date] && v) { bg = COLORS.MOVED; color = 'white'; } // blue = moved/added by balancer (this shift only)
+            else if (v === 'R/O' || v === 'RO' || v.startsWith('R ')) bg = COLORS.RO;           // light pink = request off
+            else if (['PTO','VAC','FMLA','LOA'].includes(v)) bg = COLORS.PTO;                   // green = PTO
+            else if (v === 'EDU') { bg = COLORS.CLASS; color = 'white'; }                       // red = class / central lines / etc.
+            else if (isHoliday(date)) bg = COLORS.HOLIDAY;                                      // light purple = holiday
             const fw = bg ? 'bold' : 'normal';
             return bg
                 ? `style="background:${bg};color:${color};font-weight:${fw};text-align:center;padding:3px 4px;border:1px solid #ddd;font-size:11px;"`
@@ -3107,7 +3248,7 @@
             const hdrBg = isDay ? '#1a365d' : '#2d3748';
             let html = `<h2 style="color:${hdrBg};margin:16px 0 8px;">${shiftLabel}</h2>
             <p style="font-size:11px;color:#666;margin-bottom:8px;">
-                🟣 R/O &nbsp;|&nbsp; 🟦 PTO &nbsp;|&nbsp; 🔴 ADMIN &nbsp;|&nbsp; 🩷 Added/Moved by balancer
+                <span style="background:#A9D18E;padding:1px 6px;">PTO</span> &nbsp; <span style="background:#E53935;color:white;padding:1px 6px;">Class / Central lines / etc.</span> &nbsp; <span style="background:#F8C8DC;padding:1px 6px;">Request off</span> &nbsp; <span style="background:#4BA3D3;color:white;padding:1px 6px;">Moved / added shift</span> &nbsp; <span style="background:#D9D2E9;padding:1px 6px;">Holiday</span>
             </p>
             <table cellspacing="0" style="border-collapse:collapse;font-size:11px;font-family:Calibri,Arial;">
             <tr style="background:${hdrBg};color:white;font-weight:bold;">
@@ -3115,11 +3256,11 @@
                 <td style="padding:4px 6px;border:1px solid #aaa;">Job</td>
                 <td style="padding:4px 6px;border:1px solid #aaa;">Type</td>
                 <td style="padding:4px 6px;border:1px solid #aaa;">Skills</td>
-                ${dates.map(d=>`<td style="padding:2px 3px;border:1px solid #aaa;text-align:center;font-size:10px;min-width:32px;">${fmtDow(d)}<br>${fmtD(d)}</td>`).join('')}
+                ${dates.map(d=>`<td style="padding:2px 3px;border:1px solid #aaa;text-align:center;font-size:10px;min-width:32px;${isHoliday(d)?'background:#D9D2E9;color:#2d3748;':''}">${fmtDow(d)}<br>${fmtD(d)}</td>`).join('')}
                 <td style="padding:4px 6px;border:1px solid #aaa;">WE</td>
                 <td style="padding:4px 6px;border:1px solid #aaa;">${isDay?'7A':'7P'}</td>
                 <td style="padding:4px 6px;border:1px solid #aaa;">Total</td>
-                <td style="padding:4px 6px;border:1px solid #aaa;background:#E91E8C;">Moves</td>
+                <td style="padding:4px 6px;border:1px solid #aaa;background:#4BA3D3;">Moves</td>
             </tr>`;
 
             const moveCounts = (result.moveList || []).reduce((counts, move) => {
@@ -3128,15 +3269,18 @@
             }, {});
             const highestMoveCount = Math.max(0, ...Object.values(moveCounts));
 
+            const movedSet = {}; (result.moveList || []).forEach(m => { movedSet[m.name + '|' + m.date] = true; }); // v32: per-shift highlights
+            const isRot = st => MID_ROTATORS.some(n => normalizeStaffName(n) === normalizeStaffName(st.name));
             const groups = isDay ? [
                 { label: 'ANMs', staff: staffRoster.filter(s=>ANM_STAFF.includes(s.name)&&s.shift!=='PM') },
-                { label: 'EB/CHG RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='AM'&&s.job==='RN'&&s.skill?.includes('EB')&&s.skill?.includes('CN')) },
-                { label: 'ES/CHG RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='AM'&&s.job==='RN'&&s.skill?.includes('ES')&&s.skill?.includes('CN')) },
-                { label: 'ES RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='AM'&&s.job==='RN'&&s.skill?.includes('ES')&&!s.skill?.includes('CN')) },
-                { label: 'EB RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='AM'&&s.job==='RN'&&s.skill?.includes('EB')&&!s.skill?.includes('CN')) },
-                { label: 'RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='AM'&&s.job==='RN'&&!s.skill?.includes('EB')&&!s.skill?.includes('ES')&&!s.skill?.includes('CN')) },
-                { label: 'MID Shift', staff: staffRoster.filter(s=>s.shift==='MIDSHIFT'&&!EXCLUDED_STAFF.includes(s.name)) },
-                { label: 'PCTs/HUCs', staff: staffRoster.filter(s=>(s.job==='PCT'||s.job==='HUC')&&s.shift==='AM'&&!EXCLUDED_STAFF.includes(s.name)) },
+                { label: 'EB/CHG RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='AM'&&s.job==='RN'&&!isRot(s)&&s.skill?.includes('EB')&&s.skill?.includes('CN')) },
+                { label: 'ES/CHG RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='AM'&&s.job==='RN'&&!isRot(s)&&s.skill?.includes('ES')&&s.skill?.includes('CN')) },
+                { label: 'ES RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='AM'&&s.job==='RN'&&!isRot(s)&&s.skill?.includes('ES')&&!s.skill?.includes('CN')) },
+                { label: 'EB RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='AM'&&s.job==='RN'&&!isRot(s)&&s.skill?.includes('EB')&&!s.skill?.includes('CN')) },
+                { label: 'RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='AM'&&s.job==='RN'&&!isRot(s)&&!s.skill?.includes('EB')&&!s.skill?.includes('ES')&&!s.skill?.includes('CN')) },
+                { label: 'MID Shift (permanent + rotators)', staff: staffRoster.filter(s=>(s.shift==='MIDSHIFT'||isRot(s))&&!EXCLUDED_STAFF.includes(s.name)) },
+                { label: 'PCTs', staff: staffRoster.filter(s=>s.job==='PCT'&&s.shift==='AM'&&!EXCLUDED_STAFF.includes(s.name)) },
+                { label: 'US (Unit Secretaries)', staff: staffRoster.filter(s=>s.job==='US'&&s.shift==='AM'&&!EXCLUDED_STAFF.includes(s.name)) },
             ] : [
                 { label: 'ANMs', staff: staffRoster.filter(s=>ANM_STAFF.includes(s.name)&&s.shift==='PM') },
                 { label: 'ES/CHG RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='PM'&&s.job==='RN'&&s.skill?.includes('ES')&&s.skill?.includes('CN')) },
@@ -3144,7 +3288,8 @@
                 { label: 'ES RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='PM'&&s.job==='RN'&&s.skill?.includes('ES')&&!s.skill?.includes('CN')) },
                 { label: 'EB RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='PM'&&s.job==='RN'&&s.skill?.includes('EB')&&!s.skill?.includes('CN')) },
                 { label: 'RNs', staff: staffRoster.filter(s=>!ANM_STAFF.includes(s.name)&&!EXCLUDED_STAFF.includes(s.name)&&s.shift==='PM'&&s.job==='RN'&&!s.skill?.includes('EB')&&!s.skill?.includes('ES')&&!s.skill?.includes('CN')) },
-                { label: 'PCTs/HUCs', staff: staffRoster.filter(s=>(s.job==='PCT'||s.job==='HUC')&&s.shift==='PM'&&!EXCLUDED_STAFF.includes(s.name)) },
+                { label: 'PCTs', staff: staffRoster.filter(s=>s.job==='PCT'&&s.shift==='PM'&&!EXCLUDED_STAFF.includes(s.name)) },
+                { label: 'US (Unit Secretaries)', staff: staffRoster.filter(s=>s.job==='US'&&s.shift==='PM'&&!EXCLUDED_STAFF.includes(s.name)) },
             ];
 
             // v31.1 SAFETY NET: every person counted in the totals must appear as a row.
@@ -3168,7 +3313,8 @@
                         const dow = parseDate(d).getDay();
                         const dIsWE = isDay?(dow===0||dow===6):[5,6,0].includes(dow);
                         if (counting.includes(v)||v==='MID') { worked++; if(dIsWE) we++; }
-                        return `<td ${cellStyle(v, s.name, d, isANM)}>${v}</td>`;
+                        const shown = (v === 'ANM_ADMIN' && s.rawShifts?.[d]) ? String(s.rawShifts[d]).replace(/\n/g, ' ') : v; // v32: show real ANM office time
+                        return `<td ${cellStyle(v, s.name, d, isANM, movedSet)}>${shown}</td>`;
                     }).join('');
                     const skillDisp = [s.skill?.includes('ES')?'ES':'',s.skill?.includes('EB')?'EB':'',s.skill?.includes('CN')?'CHG':''].filter(Boolean).join('/');
                     const commitment = staffCommitmentStatus(s, simulation, dates);
@@ -3201,9 +3347,20 @@
                 }).join('')}
                 <td colspan="4" style="background:#edf2f7;border:1px solid #aaa;"></td>
             </tr>`;
-            html += coverageRow('TOTAL RN', 'rn', d => getRnMin(d, isDay?'day':'night'));
-            html += coverageRow('ASSIGNED CN', 'cn', requirements.CN, CN_MAX);
+            const md = isDay ? 'day' : 'night';
+            const plainRow = (label, key) => `<tr><td colspan="4" style="background:#edf2f7;font-weight:700;padding:4px 8px;border:1px solid #aaa;">${label}</td>${daily.map(item => `<td style="text-align:center;padding:4px;border:1px solid #aaa;background:#f7fafc;">${item[key]}</td>`).join('')}<td colspan="4" style="background:#edf2f7;border:1px solid #aaa;"></td></tr>`;
+            // v32: staff RNs = the rows above; bedside = staff RNs minus a staff charge nurse (when no ANM is charge)
+            html += plainRow('STAFF RNs (count the rows above)', 'staffRN');
+            html += plainRow('CHARGE NURSE (ANM or staff RN)', 'charge');
+            html += (() => {
+                return `<tr><td colspan="4" style="background:#edf2f7;font-weight:700;padding:4px 8px;border:1px solid #aaa;">BEDSIDE RNs (balanced to ${requirements.RN_WD}–${requirements.RN_WD + 1})</td>${daily.map(item => `<td style="${coverageStatusStyle(item.rn, getRnMin(item.date, md), getRnMax(item.date, md))}text-align:center;padding:4px;border:1px solid #aaa;">${item.rn}</td>`).join('')}<td colspan="4" style="background:#edf2f7;border:1px solid #aaa;"></td></tr>`;
+            })();
+            html += coverageRow('CN-QUALIFIED', 'cn', requirements.CN);
             html += coverageRow('TOTAL ES', 'es', requirements.ES);
+            html += coverageRow('TOTAL EB', 'eb', requirements.EB);
+            html += coverageRow('TOTAL PCT', 'pct', d => getPctMin(d, md), PCT_MAX);
+            html += plainRow('TOTAL US', 'us');
+            if (isDay) html += coverageRow('TOTAL MID', 'mid', d => getMidMin(d), null);
             html += '</table>';
             return html;
         };
@@ -3233,19 +3390,9 @@
             const makeTable = (label, result, counting, isDay) => {
                 const { simulation, dates } = result;
                 const cov = dates.map(date => {
-                    let rn=0,pct=0,chg=0,eb=0,es=0;
-                    staffRoster.forEach(s => {
-                        if (EXCLUDED_STAFF.includes(s.name)) return;
-                        const sh = simulation[s.name] ? simulation[s.name][date] : '';
-                        const counts = counting.includes(sh) || (isDay && sh==='MID');
-                        if (!counts) return;
-                        if (sh === 'ANM_CN') { rn++; chg++; }
-                        else if (s.job?.includes('RN')) { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
-                        if (s.job==='PCT'||s.job==='HUC') pct++;
-                    });
+                    const { rn, pct, chg, eb, es } = covFromSim(date, simulation, isDay ? 'day' : 'night'); // v32 shared count
                     const dow = parseDate(date).getDay();
                     const isWE = isDay ? (dow===0||dow===6) : (dow===5||dow===6||dow===0);
-                    chg = Math.min(chg, CN_MAX);
                     return {
                         rn, pct, chg, eb, es,
                         rnMin:  isWE ? requirements.RN_WE  : requirements.RN_WD,
@@ -3288,7 +3435,7 @@
                     <td style="text-align:center;padding:3px 6px;border:1px solid #ccc;">${min}</td>
                     ${vals.map((v,i)=>cell(v,isNet,isRN,
                         metric==='dailyRN'?cov[i].rnMin:metric==='dailyPCT'?cov[i].pctMin:metric?requirements[metric.toUpperCase()]:null,
-                        metric==='cn'?CN_MAX:null)).join('')}</tr>`
+                        null)).join('')}</tr>`
                 ).join('');
                 return `<h3 style="margin:24px 0 6px;color:#1F3864;">${label}</h3>
                 <table cellspacing="0" style="border-collapse:collapse;font-size:12px;font-family:Calibri,Arial;">${hdr}${rows}</table>`;
@@ -3313,17 +3460,8 @@
         const COUNTING_DAY = ['7A','MID','ANM_CN'];
         const simulation = balancedResults.day ? balancedResults.day.simulation : {};
         const cov = dates.map(date => {
-            let rn=0,pct=0,chg=0,eb=0,es=0;
-            staffRoster.forEach(s => {
-                if (EXCLUDED_STAFF.includes(s.name)) return;
-                const sh = simulation[s.name] ? simulation[s.name][date] : '';
-                if (!COUNTING_DAY.includes(sh)) return;
-                if (sh === 'ANM_CN') { rn++; chg++; }
-                else if (s.job?.includes('RN')) { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
-                if (s.job?.includes('PCT') || s.job==='HUC') pct++;
-            });
+            const { rn, pct, chg, eb, es } = covFromSim(date, simulation, 'day'); // v32 shared count
             const rnMin=getRnMin(date), pctMin=getPctMin(date);
-            chg = Math.min(chg, CN_MAX);
             return {date,rn,pct,chg,eb,es,rnMin,pctMin};
         });
 
@@ -3378,7 +3516,7 @@
             const rnMin = we ? requirements.RN_WE : requirements.RN_WD;
             const pctMin = we ? requirements.PCT_WE : requirements.PCT_WD;
             const rnMax = getRnMax(date, 'night');
-            chgCount = Math.min(chgCount, CN_MAX);
+            // v32: no CN maximum
             return { date, rn:rnCount, pct:pctCount, chg:chgCount, eb:ebCount, es:esCount, rnMin, rnMax, pctMin };
         });
 
@@ -3423,20 +3561,11 @@
 
         // ── COVERAGE SUMMARY at the bottom with color coding ──
         const cov = dates.map(date => {
-            let rn=0,pct=0,chg=0,eb=0,es=0;
-            staffRoster.forEach(s => {
-                if (EXCLUDED_STAFF.includes(s.name)) return;
-                const sh = simulation[s.name] ? simulation[s.name][date] : '';
-                if (!COUNTING.includes(sh)) return;
-                if (sh === 'ANM_CN') { rn++; chg++; }
-                else if (s.job?.includes('RN')) { rn++; if(s.skill?.includes('CN'))chg++; if(s.skill?.includes('EB'))eb++; if(s.skill?.includes('ES'))es++; }
-                if (s.job?.includes('PCT') || s.job==='HUC') pct++;
-            });
+            const { rn, pct, chg, eb, es } = covFromSim(date, simulation, isDay ? 'day' : 'night'); // v32 shared count
             const dow = parseDate(date).getDay();
             const isWE = isDay ? (dow===0||dow===6) : (dow===5||dow===6||dow===0);
             const rnMin  = isWE ? requirements.RN_WE  : requirements.RN_WD;
             const pctMin = isWE ? requirements.PCT_WE : requirements.PCT_WD;
-            chg = Math.min(chg, CN_MAX);
             return {rn,pct,chg,eb,es,rnMin,pctMin};
         });
 
@@ -3446,8 +3575,8 @@
         data.push([]);
         data.push(['RN Count',              requirements.RN_WD,  '', ...cov.map(c=>c.rn)]);
         data.push(['RN +/-',                '',                  '', ...cov.map(c=>c.rn-c.rnMin)]);
-        data.push(['PCT/HUC Count',         requirements.PCT_WD, '', ...cov.map(c=>c.pct)]);
-        data.push(['PCT/HUC +/-',            '',                  '', ...cov.map(c=>c.pct-c.pctMin)]);
+        data.push(['PCT Count',         requirements.PCT_WD, '', ...cov.map(c=>c.pct)]);
+        data.push(['PCT +/-',            '',                  '', ...cov.map(c=>c.pct-c.pctMin)]);
         data.push(['Charge RN',             requirements.CN,     '', ...cov.map(c=>c.chg)]);
         data.push(['Charge +/-',            '',                  '', ...cov.map(c=>c.chg-requirements.CN)]);
         data.push(['ECMO Bedside (EB)',     requirements.EB,     '', ...cov.map(c=>c.eb)]);
@@ -3460,7 +3589,7 @@
         // Color code the tally rows: green=at par/over min, blue=over cap, red=negative
         // Find which rows in `data` are the +/- net rows
         const totalRows = data.length;
-        const netRowLabels = ['RN +/-','PCT/HUC +/-','Charge +/-','EB +/-','ES +/-'];
+        const netRowLabels = ['RN +/-','PCT +/-','Charge +/-','EB +/-','ES +/-'];
         data.forEach((row, rowIdx) => {
             const label = row[0];
             if (!netRowLabels.includes(label)) return;
@@ -3520,7 +3649,7 @@
                 ['RN','CN','ES','EB','PCT'].concat(mode==='day'?['MID']:[]).forEach(role => {
                     if (!(gaps[role] > 0)) return;
                     const priority = ['RN','CN','ES'].includes(role) ? 'CRITICAL' : role==='EB' ? 'HIGH' : 'MEDIUM';
-                    const detail = role==='PCT' ? 'PCT/HUC floor support' : role==='CN' ? 'Assigned charge coverage' : role==='ES' ? 'ECMO specialist' : role==='EB' ? 'ECMO bedside skill' : role==='MID' ? 'Mid-shift coverage' : 'Bedside RN coverage';
+                    const detail = role==='PCT' ? 'PCT floor support' : role==='CN' ? 'Assigned charge coverage' : role==='ES' ? 'ECMO specialist' : role==='EB' ? 'ECMO bedside skill' : role==='MID' ? 'Mid-shift coverage' : 'Bedside RN coverage';
                     const dt=parseDate(date);
                     openNeeds.push([date,dt.toLocaleDateString('en-US',{weekday:'short'}),mode==='day'?'Day':'Night',role,gaps[role],detail,priority]);
                 });
@@ -3585,9 +3714,12 @@
             data.push(['DAILY COVERAGE TALLY','Minimum','','',...dates]);
             const daily = dates.map(date => ({ date, ...getDailyClinicalTotals(date, result.simulation, mode) }));
             const tallyRows = [
-                ['Total RN', d => getRnMin(d, mode), 'rn', null],
-                ['PCT/HUC', d => getPctMin(d, mode), 'pct', null],
-                ['Assigned CN', () => requirements.CN, 'cn', CN_MAX],
+                ['Staff RNs (rows above)', () => '', 'staffRN', null],
+                ['Charge nurse', () => '', 'charge', null],
+                ['Bedside RNs (balanced)', d => getRnMin(d, mode), 'rn', null],
+                ['PCT', d => getPctMin(d, mode), 'pct', PCT_MAX],
+                ['US', () => '', 'us', null],
+                ['CN-qualified', () => requirements.CN, 'cn', null],
                 ['EB', () => requirements.EB, 'eb', null],
                 ['ES', () => requirements.ES, 'es', null]
             ];
@@ -3624,16 +3756,17 @@
                     : statusStyle(commitment.total, commitment.required);
                 const count = moveCounts[staff.name] || 0;
                 const addr = XLSX.utils.encode_cell({ r:row, c:movesCol });
-                if (ws[addr]) ws[addr].s = fillStyle(count ? 'FFE91E8C' : 'FFFFF5F7', count ? 'FFFFFFFF' : 'FF97266D');
+                if (ws[addr]) ws[addr].s = fillStyle(count ? 'FF4BA3D3' : 'FFF0F7FC', count ? 'FFFFFFFF' : 'FF2B6CB0');
                 dates.forEach((date, dateIndex) => {
                     const shiftAddr = XLSX.utils.encode_cell({r:row,c:dateIndex+4});
                     const value = result.simulation[staff.name]?.[date] || '';
                     if (!ws[shiftAddr]) return;
                     const moved = (result.moveList || []).some(move => move.name === staff.name && move.date === date);
-                    if (moved) ws[shiftAddr].s = fillStyle('FFE91E8C');
-                    else if (value === 'R/O') ws[shiftAddr].s = fillStyle('FF7B2D8B');
-                    else if (['PTO','FMLA','LOA'].includes(value)) ws[shiftAddr].s = fillStyle('FF0097A7');
-                    else if (['ADMIN','ANM_ADMIN','PAYRO'].includes(value)) ws[shiftAddr].s = fillStyle('FFC62828');
+                    if (moved) ws[shiftAddr].s = fillStyle('FF4BA3D3');
+                    else if (value === 'R/O') ws[shiftAddr].s = fillStyle('FFF8C8DC','FF2D3748');
+                    else if (['PTO','FMLA','LOA'].includes(value)) ws[shiftAddr].s = fillStyle('FFA9D18E','FF2D3748');
+                    else if (value === 'EDU') ws[shiftAddr].s = fillStyle('FFE53935');
+                    else if (isHoliday(date)) ws[shiftAddr].s = fillStyle('FFD9D2E9','FF2D3748');
                 });
             });
             const tallyHeaderIndex = tallyHeaderRow;
