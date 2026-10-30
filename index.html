@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CVICU Schedule Balancer v32.5</title>
+    <title>CVICU Schedule Balancer v32.6</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
@@ -71,10 +71,10 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v32.5</span></h1>
+        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v32.6</span></h1>
         <p class="subtitle">Upload MyTime export → Auto-balance → Download Excel/CSV</p>
         <div style="margin-top:10px;padding:8px 14px;background:#e6fffa;border-radius:6px;font-size:13px;color:#234e52;display:inline-block;">
-            ✅ v32.5 Current: MID weekdays 1–3 | Wrong-template codes count as the person's own shift | Date row above totals | Mid staff weekend rule fixed | Rotating mid RNs detected each cycle | Chairez 11/15 entry fixed | 8:00 AM for staff = class | Rowena's Oct 30 roster corrections built in | Bedside RNs balanced to a 1-RN band — one extra RN when a staff RN is charge | Charge nurses min 2, actively balanced | Night ANM charge (18T7Q x) | PCT min 1 / max 2, US counted separately | MID weekdays 2–3, weekends 1 | Weekend shifts go to fewest-weekend staff | New color code | Your roster edits always win
+            ✅ v32.6 Current: MID HARD RULE: weekdays 1–2, weekends exactly 1 | Wrong-template codes count as the person's own shift | Date row above totals | Mid staff weekend rule fixed | Rotating mid RNs detected each cycle | Chairez 11/15 entry fixed | 8:00 AM for staff = class | Rowena's Oct 30 roster corrections built in | Bedside RNs balanced to a 1-RN band — one extra RN when a staff RN is charge | Charge nurses min 2, actively balanced | Night ANM charge (18T7Q x) | PCT min 1 / max 2, US counted separately | MID weekdays 2–3, weekends 1 | Weekend shifts go to fewest-weekend staff | New color code | Your roster edits always win
         </div>
     </div>
 
@@ -146,7 +146,7 @@
                     <li><strong>Charge nurse</strong> — when no ANM is working as charge, a staff RN is charge (no patients), so the tool schedules one extra RN: the charge nurse <em>plus</em> the minimum bedside RNs.</li>
                     <li><strong>PCT</strong> minimum 1, maximum 2 per shift. US (Unit Secretaries) are counted separately and never count as PCTs.</li>
                     <li><strong>Charge-qualified nurses (CN)</strong> minimum 2 per shift, no maximum</li>
-                    <li><strong>MID</strong> — weekdays 1–3, weekends exactly 1</li>
+                    <li><strong>MID</strong> — weekdays 1–2, weekends exactly 1 (hard rule)</li>
                     <li>EB and ES minimums (skill mix)</li>
                 </ul>
             </div>
@@ -214,7 +214,7 @@
                 </div>
                 <div>
                     <div style="color:#fbd38d;font-weight:600;">Mid Shift (MID)</div>
-                    <div>Counts toward Day coverage. Weekdays 1–3, weekends exactly 1. Permanent: Hickman (10a–10p), Kesbeh (12p–12a).</div>
+                    <div>Counts toward Day coverage. Weekdays 1–2, weekends exactly 1. Permanent: Hickman (10a–10p), Kesbeh (12p–12a).</div>
                 </div>
                 <div>
                     <div style="color:#fbd38d;font-weight:600;">PTO = Worked Shift</div>
@@ -238,7 +238,7 @@
                 </div>
                 <div>
                     <div style="color:#fbd38d;font-weight:600;">Mid Shift Requirements</div>
-                    <div>Weekday 1–3, weekend exactly 1. Permanent: Hickman (PT, 10a–10p) &amp; Kesbeh (FT, 12p–12a). Plus 4 rotating mid RNs each 6-week cycle — whoever signs up with a mid code that schedule.</div>
+                    <div>Weekday 1–2, weekend exactly 1. Permanent: Hickman (PT, 10a–10p) &amp; Kesbeh (FT, 12p–12a). Plus 4 rotating mid RNs each 6-week cycle — whoever signs up with a mid code that schedule.</div>
                 </div>
                 <div>
                     <div style="color:#fbd38d;font-weight:600;">Weekend Maximums (removed)</div>
@@ -548,8 +548,8 @@
             </div>
             <div>
                 <div class="slider-group">
-                    <div class="slider-label"><span>🔄 MID Shift Weekday Min (Mon–Fri, max 3)</span><span class="slider-value" id="midWdValue">1</span></div>
-                    <input type="range" id="midWdSlider" min="0" max="3" value="1">
+                    <div class="slider-label"><span>🔄 MID Shift Weekday Min (Mon–Fri, max 2)</span><span class="slider-value" id="midWdValue">1</span></div>
+                    <input type="range" id="midWdSlider" min="0" max="2" value="1">
                 </div>
             </div>
             <div>
@@ -669,7 +669,7 @@
                             <div style="font-weight:600;margin-bottom:6px;">Weekend Definition</div>
                             <div><strong>Day shift:</strong> Sat &amp; Sun</div>
                             <div><strong>Night shift:</strong> FRI, Sat &amp; Sun</div>
-                            <div><strong>Mid shift:</strong> Sat &amp; Sun (max 3)</div>
+                            <div><strong>Mid shift:</strong> Sat &amp; Sun (3 or fewer per 6 weeks)</div>
                         </div>
                     </div>
                 </div>
@@ -898,7 +898,7 @@
     let scheduleStatus = 'open';
     // v32: no offset / dressing-day rules — every day uses the same 1-RN band (min..min+1) on BEDSIDE RNs.
     // CN: minimum 2, no maximum. PCT: minimum 1, maximum 2 (US counted separately).
-    // MID: weekdays 1–3 (min lowered to 1, Oct 30), weekends exactly 1.
+    // MID: weekdays 1–2 (HARD RULE, Oct 30), weekends exactly 1.
     let requirements = { RN_WD: 15, RN_WE: 15, PCT_WD: 1, PCT_WE: 1, CN: 2, EB: 2, ES: 2,
                           CAP_WD: 1, CAP_THU: 1, CAP_SAT: 1, CAP_SUN: 1,
                           MID_WD: 1, MID_WE: 1 };
@@ -912,7 +912,7 @@
         if (m === 0) return day === 1;
         return false;
     }
-    const MID_MAX_WD = 3, MID_MAX_WE = 1;
+    const MID_MAX_WD = 2, MID_MAX_WE = 1;
     // v32.3: rotating mid RNs change every 6-week cycle — whoever signs up with a mid code
     // (11:00 AM, 1:00 PM, 10W22, 12W00) is a rotator for THAT schedule. Rebuilt on every import.
     let MID_ROTATORS = [];
@@ -1979,7 +1979,7 @@
                 let filled = 0;
                 for (const c of midCandidates) {
                     if (filled >= midNeeded) break;
-                    if (getGaps(date, simulation, COUNTING_DAY)._midCurrent >= getMidMax(date)) break; // v32: weekday max 3, weekend exactly 1
+                    if (getGaps(date, simulation, COUNTING_DAY)._midCurrent >= getMidMax(date)) break; // v32: weekday max 2, weekend exactly 1
                     const orig = simulation[c.name][date];
                     simulation[c.name][date] = 'MID';
                     trackMove(c.name, c.priority.category, date, 'MID', orig);
@@ -2042,6 +2042,7 @@
 
         moves += levelCharge(simulation, dates, 'day', COUNTING_DAY, moveList);
         moves += levelMidAndPct(simulation, dates, 'day', COUNTING_DAY, moveList);
+        moves += enforceMidMax(simulation, dates, moveList);
         moves += levelRNBand(simulation, dates, 'day', COUNTING_DAY, moveList);
         moves += levelCharge(simulation, dates, 'day', COUNTING_DAY, moveList);
         return { simulation, dates, moves, moveList };
@@ -2081,18 +2082,20 @@
                 const before = getGaps(src, simulation, countingCodes);
                 const movers = staffRoster.filter(st => opts.eligible(st, src, t) && simulation[st.name]?.[src] === opts.code(st)
                         && st.type !== 'PRN' && !ANM_STAFF.includes(st.name) && !EXCLUDED_STAFF.includes(st.name) && !protectedStaff.includes(st.name))
-                    .map(st => ({ st, pr: getPriorityCategory(st, simulation, null), selfSched: orig(st, src) === opts.code(st) }))
-                    .sort((a, b) => (a.selfSched - b.selfSched) || (a.pr.tier - b.pr.tier));
+                    .map(st => ({ st, pr: getPriorityCategory(st, simulation, null), selfSched: orig(st, src) === opts.code(st), permanent: st.shift === 'MIDSHIFT' }))
+                    // v32.6: rotating (non-permanent) mid RNs are moved before permanent mid shifters
+                    .sort((a, b) => (opts.hard ? (a.permanent - b.permanent) : 0) || (a.selfSched - b.selfSched) || (a.pr.tier - b.pr.tier));
                 for (const m of movers) {
                     const name = m.st.name, code = opts.code(m.st);
                     const tv = simulation[name][t];
                     if (tv && String(tv).trim() !== '') continue;
-                    if (m.selfSched && !canAddMove(name, m.pr.category)) continue;
+                    const hardOver = opts.hard && cnt[src] > opts.max(src); // v32.6: hard rule beats the move cap
+                    if (m.selfSched && !hardOver && !canAddMove(name, m.pr.category)) continue;
                     simulation[name][src] = '';
                     const after = getGaps(src, simulation, countingCodes);
                     const ok = after.CN <= before.CN && after.EB <= before.EB && after.ES <= before.ES
-                        && !(isWE(src) && !isWE(t) && worked(name, isWE) < weReq(m.st))
-                        && !(mode === 'day' && isSun(src) && !isSun(t) && m.st.shift !== 'MIDSHIFT' && (m.st.type === 'FT' || m.st.type === 'PT') && worked(name, isSun) < 2)
+                        && !(isWE(src) && !isWE(t) && worked(name, isWE) < weReq(m.st) && !(hardOver && !m.permanent))
+                        && !(mode === 'day' && isSun(src) && !isSun(t) && m.st.shift !== 'MIDSHIFT' && (m.st.type === 'FT' || m.st.type === 'PT') && worked(name, isSun) < 2 && !(hardOver && !m.permanent))
                         && canAdd(opts.asStaff ? opts.asStaff(m.st) : m.st, t, simulation, countingCodes, mode);
                     if (!ok) { simulation[name][src] = code; continue; }
                     simulation[name][t] = code;
@@ -2110,10 +2113,22 @@
         if (n) console.log(`[v32] ${mode} ${opts.label}: ${n} move(s)`);
         return n;
     }
+
+    // v32.6 MID HARD RULE — weekends exactly 1, weekdays at most 2. A mid shifter always stays a mid shifter:
+    // extra mids are MOVED to another day (rotating mid RNs before permanent ones). Anything that still
+    // can't move is flagged for a manual fix — never converted to a regular day shift.
+    function enforceMidMax(simulation, dates, moveList) {
+        const flagged = [];
+        dates.forEach(d => { const extra = covFromSim(d, simulation, 'day').mid - getMidMax(d); if (extra > 0) flagged.push(`${d.trim()}: ${extra} extra mid`); });
+        if (flagged.length) console.warn('[v32.6] MID over max, needs manual fix:', flagged.join('; '));
+        balancedResults_midFlags = flagged;
+        return 0;
+    }
+    let balancedResults_midFlags = [];
     function levelMidAndPct(simulation, dates, mode, countingCodes, moveList) {
         let n = 0;
         if (mode === 'day') n += levelGroup(simulation, dates, mode, countingCodes, moveList, {
-            label: 'Level MID count',
+            label: 'Level MID count', hard: true,
             count: d => covFromSim(d, simulation, 'day').mid,
             min: d => getMidMin(d), max: d => getMidMax(d),
             code: () => 'MID',
