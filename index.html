@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CVICU Schedule Balancer v32.7</title>
+    <title>CVICU Schedule Balancer v32.8</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
@@ -71,10 +71,10 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v32.7</span></h1>
+        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v32.8</span></h1>
         <p class="subtitle">Upload MyTime export → Auto-balance → Download Excel/CSV</p>
         <div style="margin-top:10px;padding:8px 14px;background:#e6fffa;border-radius:6px;font-size:13px;color:#234e52;display:inline-block;">
-            ✅ v32.7 Current: EB/ES balanced across the week | MID HARD RULE: weekdays 1–2, weekends exactly 1 | Wrong-template codes count as the person's own shift | Date row above totals | Mid staff weekend rule fixed | Rotating mid RNs detected each cycle | Chairez 11/15 entry fixed | 8:00 AM for staff = class | Rowena's Oct 30 roster corrections built in | Bedside RNs balanced to a 1-RN band — one extra RN when a staff RN is charge | Charge nurses min 2, actively balanced | Night ANM charge (18T7Q x) | PCT min 1 / max 2, US counted separately | MID weekdays 2–3, weekends 1 | Weekend shifts go to fewest-weekend staff | New color code | Your roster edits always win
+            ✅ v32.8 Current: Night RN skills completed | EB/ES balanced across the week | MID HARD RULE: weekdays 1–2, weekends exactly 1 | Wrong-template codes count as the person's own shift | Date row above totals | Mid staff weekend rule fixed | Rotating mid RNs detected each cycle | Chairez 11/15 entry fixed | 8:00 AM for staff = class | Rowena's Oct 30 roster corrections built in | Bedside RNs balanced to a 1-RN band — one extra RN when a staff RN is charge | Charge nurses min 2, actively balanced | Night ANM charge (18T7Q x) | PCT min 1 / max 2, US counted separately | MID weekdays 2–3, weekends 1 | Weekend shifts go to fewest-weekend staff | New color code | Your roster edits always win
         </div>
     </div>
 
@@ -748,21 +748,21 @@
         "Cailing, Manuel": {"type":"FT","skill":"ES","job":"RN","shift":"AM"},
         "Callicoatte, Adina": {"type":"FT","skill":"","job":"RN","shift":"PM"},
         "Chairez, Odalys Y": {"type":"PT","skill":"ES/CN","job":"RN","shift":"AM"},
-        "Chavarria, Raul M": {"type":"FT","skill":"","job":"RN","shift":"PM"},
+        "Chavarria, Raul M": {"type":"FT","skill":"EB","job":"RN","shift":"PM"},
         "Chen, Maggie M": {"type":"FT","skill":"ES","job":"RN","shift":"AM"},
         "Cherian, Anithamol": {"type":"PT","skill":"ES","job":"RN","shift":"PM"},
         "Cho, Jennifer": {"type":"FT","skill":"EB/CN","job":"RN","shift":"AM"},
         "Claudio, Edelbert": {"type":"FT","skill":"EB/CN","job":"RN","shift":"AM"},
         "Crayton, Karonda": {"type":"FT","skill":"","job":"US","shift":"AM"},
         "Cruz, Rowena": {"type":"FT","skill":"","job":"AMGR","shift":"AM"},
-        "Davis, Sydney": {"type":"FT","skill":"","job":"RN","shift":"PM"},
+        "Davis, Sydney": {"type":"FT","skill":"EB","job":"RN","shift":"PM"},
         "DeLuna, Travis": {"type":"FT","skill":"ES","job":"RN","shift":"PM"},
         "Devadoss, Sachithanadam": {"type":"FT","skill":"ES/CN","job":"RN","shift":"AM"},
         "Dismuke, Brittany": {"type":"FT","skill":"","job":"US","shift":"PM"},
         "Dismuke, Khadeja": {"type":"PRN","skill":"","job":"PCT","shift":"AM"},
         "Doman, Antonilo D": {"type":"FT","skill":"","job":"PCT","shift":"AM"},
         "Dominguez, Monica": {"type":"PRN","skill":"","job":"PCT","shift":"AM"},
-        "Douglas, Kyondra S": {"type":"PRN","skill":"","job":"RN","shift":"PM"},
+        "Douglas, Kyondra S": {"type":"PRN","skill":"EB","job":"RN","shift":"PM"},
         "Draper, Christopher M": {"type":"PRN","skill":"ES","job":"RN","shift":"AM"},
         "Ehie, Amara": {"type":"FT","skill":"ES/CN","job":"RN","shift":"PM"},
         "Flores, Raul D": {"type":"FT","skill":"","job":"RN","shift":"PM"},
@@ -794,7 +794,7 @@
         "Kesbeh, Shroq O": {"type":"FT","skill":"ES/CN","job":"RN","shift":"MIDSHIFT"},
         "Kessellie, Araminta L": {"type":"PRN","skill":"","job":"RN","shift":"PM"},
         "Kirk, Greg B": {"type":"FT","skill":"ES","job":"RN","shift":"PM"},
-        "Kuriakose, Hannah S": {"type":"FT","skill":"","job":"RN","shift":"PM"},
+        "Kuriakose, Hannah S": {"type":"FT","skill":"EB","job":"RN","shift":"PM"},
         "Langford, Robyn J": {"type":"FT","skill":"","job":"PCT","shift":"AM"},
         "Lee, Haeun": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
         "Lias, Imani A": {"type":"FT","skill":"","job":"US","shift":"AM"},
@@ -827,7 +827,7 @@
         "Raymond, Joseph D": {"type":"FT","skill":"","job":"AMGR","shift":"PM"},
         "Roberts, Ariana": {"type":"FT","skill":"","job":"RN","shift":"PM"},
         "Rodriguez, Mayra": {"type":"FT","skill":"","job":"PCT","shift":"AM"},
-        "Ross, Daysha": {"type":"PT","skill":"","job":"RN","shift":"PM"},
+        "Ross, Daysha": {"type":"PT","skill":"EB","job":"RN","shift":"PM"},
         "Sanchez, Catherine": {"type":"FT","skill":"ES/CN","job":"RN","shift":"AM"},
         "Sandoval, Alicia": {"type":"FT","skill":"","job":"PCT","shift":"PM"},
         "Schultz, Ellie F": {"type":"FT","skill":"ES/CN","job":"RN","shift":"AM"},
@@ -842,7 +842,7 @@
         "Thrasher, Jarrett C": {"type":"FT","skill":"EB/CN","job":"RN","shift":"AM"},
         "Tijerina, Sierra": {"type":"FT","skill":"EB/CN","job":"RN","shift":"AM"},
         "Timmons, Aleyah R": {"type":"FT","skill":"ES","job":"RN","shift":"AM"},
-        "Trahan, Timayah": {"type":"FT","skill":"","job":"RN","shift":"PM"},
+        "Trahan, Timayah": {"type":"FT","skill":"EB","job":"RN","shift":"PM"},
         "Tran, Hue H": {"type":"FT","skill":"ES","job":"RN","shift":"AM"},
         "Tran, Hung": {"type":"FT","skill":"EB","job":"RN","shift":"AM"},
         "Uwera, Sandrine": {"type":"FT","skill":"EB/CN","job":"RN","shift":"PM"},
@@ -851,7 +851,7 @@
         "Warneke, Madison": {"type":"FT","skill":"","job":"AMGR","shift":"PM"},
         "Warneke, Shanen": {"type":"FT","skill":"ES/CN","job":"RN","shift":"PM"},
         "Watkins, Grace": {"type":"FT","skill":"","job":"RN","shift":"PM"},
-        "Webb, Taylor": {"type":"FT","skill":"","job":"RN","shift":"PM"},
+        "Webb, Taylor": {"type":"FT","skill":"EB","job":"RN","shift":"PM"},
         "Weik, Meghan C": {"type":"FT","skill":"","job":"RN","shift":"PM"},
         "Wells, Sydney N": {"type":"FT","skill":"","job":"AMGR","shift":"AM"},
         "Whetten, Kassy": {"type":"FT","skill":"","job":"RN","shift":"PM"},
@@ -870,6 +870,8 @@
         'Harper, Bethany A','Alfred, Ajuma', // v32: resigned
         'Rodriguez, Althea Nadine']; // v32: no longer an ANM
     const CORRECTED_STAFF_NAMES = [
+        // v32.8: night RN skills from Rowena (Oct 30)
+        'Davis, Sydney','Kuriakose, Hannah S','Chavarria, Raul M','Douglas, Kyondra S','Ross, Daysha','Trahan, Timayah','Webb, Taylor','Bird, David','Botkin, Samantha','Callicoatte, Adina','HAMDAN, SAMMAR','Kelly, Skyla','Martinez Hernandez, Kimberlyn D','Nardo, Anna','Nguyen, Thiara','Nguyen, Thiara T','Raven, Taiya D','Rawlins, Abbey N','Roberts, Ariana','SIBANDA, PAMELA','Weik, Meghan C',
         'Wells, Sydney N','Chen, Maggie M','Jimenez, Krystal','Quinones, Quiryat J','Heath, Logan',
         'Makinde, Andrew','Pfaff, Lillian G','Siebert, Reagan','Aldape, Abigail C','Alfred, Ajuma',
         'Avalos, Jorge','Bird, David','Botkin, Samantha','Callicoatte, Adina','Davis, Sydney',
