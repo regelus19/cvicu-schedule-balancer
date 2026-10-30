@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CVICU Schedule Balancer v32.4</title>
+    <title>CVICU Schedule Balancer v32.5</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
@@ -71,10 +71,10 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v32.4</span></h1>
+        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v32.5</span></h1>
         <p class="subtitle">Upload MyTime export → Auto-balance → Download Excel/CSV</p>
         <div style="margin-top:10px;padding:8px 14px;background:#e6fffa;border-radius:6px;font-size:13px;color:#234e52;display:inline-block;">
-            ✅ v32.4 Current: Wrong-template codes count as the person's own shift | Date row above totals | Mid staff weekend rule fixed | Rotating mid RNs detected each cycle | Chairez 11/15 entry fixed | 8:00 AM for staff = class | Rowena's Oct 30 roster corrections built in | Bedside RNs balanced to a 1-RN band — one extra RN when a staff RN is charge | Charge nurses min 2, actively balanced | Night ANM charge (18T7Q x) | PCT min 1 / max 2, US counted separately | MID weekdays 2–3, weekends 1 | Weekend shifts go to fewest-weekend staff | New color code | Your roster edits always win
+            ✅ v32.5 Current: MID weekdays 1–3 | Wrong-template codes count as the person's own shift | Date row above totals | Mid staff weekend rule fixed | Rotating mid RNs detected each cycle | Chairez 11/15 entry fixed | 8:00 AM for staff = class | Rowena's Oct 30 roster corrections built in | Bedside RNs balanced to a 1-RN band — one extra RN when a staff RN is charge | Charge nurses min 2, actively balanced | Night ANM charge (18T7Q x) | PCT min 1 / max 2, US counted separately | MID weekdays 2–3, weekends 1 | Weekend shifts go to fewest-weekend staff | New color code | Your roster edits always win
         </div>
     </div>
 
@@ -146,7 +146,7 @@
                     <li><strong>Charge nurse</strong> — when no ANM is working as charge, a staff RN is charge (no patients), so the tool schedules one extra RN: the charge nurse <em>plus</em> the minimum bedside RNs.</li>
                     <li><strong>PCT</strong> minimum 1, maximum 2 per shift. US (Unit Secretaries) are counted separately and never count as PCTs.</li>
                     <li><strong>Charge-qualified nurses (CN)</strong> minimum 2 per shift, no maximum</li>
-                    <li><strong>MID</strong> — weekdays 2–3, weekends exactly 1</li>
+                    <li><strong>MID</strong> — weekdays 1–3, weekends exactly 1</li>
                     <li>EB and ES minimums (skill mix)</li>
                 </ul>
             </div>
@@ -214,7 +214,7 @@
                 </div>
                 <div>
                     <div style="color:#fbd38d;font-weight:600;">Mid Shift (MID)</div>
-                    <div>Counts toward Day coverage. Weekdays 2–3, weekends exactly 1. Permanent: Hickman (10a–10p), Kesbeh (12p–12a).</div>
+                    <div>Counts toward Day coverage. Weekdays 1–3, weekends exactly 1. Permanent: Hickman (10a–10p), Kesbeh (12p–12a).</div>
                 </div>
                 <div>
                     <div style="color:#fbd38d;font-weight:600;">PTO = Worked Shift</div>
@@ -238,7 +238,7 @@
                 </div>
                 <div>
                     <div style="color:#fbd38d;font-weight:600;">Mid Shift Requirements</div>
-                    <div>Weekday 2–3, weekend exactly 1. Permanent: Hickman (PT, 10a–10p) &amp; Kesbeh (FT, 12p–12a). Plus 4 rotating mid RNs each 6-week cycle — whoever signs up with a mid code that schedule.</div>
+                    <div>Weekday 1–3, weekend exactly 1. Permanent: Hickman (PT, 10a–10p) &amp; Kesbeh (FT, 12p–12a). Plus 4 rotating mid RNs each 6-week cycle — whoever signs up with a mid code that schedule.</div>
                 </div>
                 <div>
                     <div style="color:#fbd38d;font-weight:600;">Weekend Maximums (removed)</div>
@@ -548,8 +548,8 @@
             </div>
             <div>
                 <div class="slider-group">
-                    <div class="slider-label"><span>🔄 MID Shift Weekday Min (Mon–Fri, max 3)</span><span class="slider-value" id="midWdValue">2</span></div>
-                    <input type="range" id="midWdSlider" min="0" max="6" value="2">
+                    <div class="slider-label"><span>🔄 MID Shift Weekday Min (Mon–Fri, max 3)</span><span class="slider-value" id="midWdValue">1</span></div>
+                    <input type="range" id="midWdSlider" min="0" max="3" value="1">
                 </div>
             </div>
             <div>
@@ -898,10 +898,10 @@
     let scheduleStatus = 'open';
     // v32: no offset / dressing-day rules — every day uses the same 1-RN band (min..min+1) on BEDSIDE RNs.
     // CN: minimum 2, no maximum. PCT: minimum 1, maximum 2 (US counted separately).
-    // MID: weekdays 2–3, weekends exactly 1.
+    // MID: weekdays 1–3 (min lowered to 1, Oct 30), weekends exactly 1.
     let requirements = { RN_WD: 15, RN_WE: 15, PCT_WD: 1, PCT_WE: 1, CN: 2, EB: 2, ES: 2,
                           CAP_WD: 1, CAP_THU: 1, CAP_SAT: 1, CAP_SUN: 1,
-                          MID_WD: 2, MID_WE: 1 };
+                          MID_WD: 1, MID_WE: 1 };
     const PCT_MAX = 2;
     // v32: Rowena's color code
     const COLORS = { PTO:'#A9D18E', CLASS:'#E53935', RO:'#F8C8DC', MOVED:'#4BA3D3', HOLIDAY:'#D9D2E9' };
