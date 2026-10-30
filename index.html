@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CVICU Schedule Balancer v32.1</title>
+    <title>CVICU Schedule Balancer v32.2</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
@@ -71,10 +71,10 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v32.1</span></h1>
+        <h1>🏥 CVICU Schedule Balancer <span style="font-size:18px;color:#667eea;">v32.2</span></h1>
         <p class="subtitle">Upload MyTime export → Auto-balance → Download Excel/CSV</p>
         <div style="margin-top:10px;padding:8px 14px;background:#e6fffa;border-radius:6px;font-size:13px;color:#234e52;display:inline-block;">
-            ✅ v32.1 Current: 8:00 AM for staff = class | Rowena's Oct 30 roster corrections built in | Bedside RNs balanced to a 1-RN band — one extra RN when a staff RN is charge | Charge nurses min 2, actively balanced | Night ANM charge (18T7Q x) | PCT min 1 / max 2, US counted separately | MID weekdays 2–3, weekends 1 | Weekend shifts go to fewest-weekend staff | New color code | Your roster edits always win
+            ✅ v32.2 Current: Chairez 11/15 entry fixed | 8:00 AM for staff = class | Rowena's Oct 30 roster corrections built in | Bedside RNs balanced to a 1-RN band — one extra RN when a staff RN is charge | Charge nurses min 2, actively balanced | Night ANM charge (18T7Q x) | PCT min 1 / max 2, US counted separately | MID weekdays 2–3, weekends 1 | Weekend shifts go to fewest-weekend staff | New color code | Your roster edits always win
         </div>
     </div>
 
@@ -880,6 +880,11 @@
         'Dismuke, Khadeja','Bogard, Brianna','Chairez, Odalys Y','DeLuna, Travis','HAMDAN, SAMMAR','Hall, Amanda','Joy, Faith','Joya Soto, Arturo B','Kesbeh, Shroq O','Makinde, Andrew','Martinez, Samantha','Nardo, Anna','Patel, Rachel','Pfaff, Lillian G','Raven, Taiya D','Rawlins, Abbey N','Ross, Daysha','Segura, Genova','Siebert, Reagan','Smith, Joshua B','Thomas, Maya','Tran, Hung','Warneke, Shanen','VanDeKop, Jordan','Hickman, Erika','Hayes, Tyler','Heath, Logan','Crayton, Karonda','Dismuke, Brittany','Joseph, Tevin Jacob','Lias, Imani A','Wu, Nancy','Bruce, Jessica','Cruz, Rowena','Wells, Sydney N','Raymond, Joseph D','Warneke, Madison'
     ];
     const normalizeStaffName = name => String(name || '').trim().replace(/\s+/g, ' ').toUpperCase();
+    // v32.2: KNOWN MYTIME ENTRY FIXES — one-off sign-up mistakes, applied on import.
+    // { name, date: 'M/D/YYYY', code: tool code to use, note }
+    const ENTRY_FIXES = [
+        { name: 'Chairez, Odalys Y', date: '11/15/2026', code: '7A', note: 'Signed up on the night template by mistake — day shift (Rowena, Oct 30)' },
+    ];
     const sameStaff = (a, b) => { const x = normalizeStaffName(a), y = normalizeStaffName(b); return x === y || x.startsWith(y + ' ') || y.startsWith(x + ' '); }; // v32.1
     const findRosterRecord = name => (Object.entries(STAFF_ROSTER_LOOKUP).find(([key]) => normalizeStaffName(key) === normalizeStaffName(name))
         || Object.entries(STAFF_ROSTER_LOOKUP).find(([key]) => sameStaff(key, name)))?.[1];
@@ -1210,6 +1215,12 @@
                 if (original) rawShifts[d.date] = original;
                 const shift = extractShiftFromBlock(block, isANM);
                 if (shift) shifts[d.date] = shift;
+            });
+
+            // v32.2: apply known entry fixes for this person
+            ENTRY_FIXES.filter(f => sameStaff(f.name, name)).forEach(f => {
+                const key = dates.map(d => d.date).find(d => calendarDayNumber(d) === calendarDayNumber(f.date.replace(/\/(\d{4})$/, '/ $1')));
+                if (key) { shifts[key] = f.code; rawShifts[key] = (rawShifts[key] ? rawShifts[key] + ' → ' : '') + f.code + ' (fixed)'; }
             });
 
             const parseJobField = (jobStr) => {
